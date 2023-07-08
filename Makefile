@@ -4,7 +4,7 @@ update-poetry:
 	pip install --upgrade poetry
 
 update-python:
-	poetry update python
+	pip install --upgrade python
 
 install:
 	poetry install
