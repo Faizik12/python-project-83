@@ -4,8 +4,6 @@ update-poetry:
 	pip install --upgrade poetry
 
 update-python:
-	sudo apt update
-	sudo apt upgrade
 	sudo apt install python
 
 install:
