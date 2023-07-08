@@ -1,7 +1,10 @@
-setup: update-poetry install
+setup: update-poetry update-python install
 
 update-poetry:
 	pip install --upgrade poetry
+
+update-python:
+	poetry update python
 
 install:
 	poetry install
