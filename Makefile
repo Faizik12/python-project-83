@@ -1,3 +1,8 @@
+setup: update-poetry install
+
+update-poetry:
+	poetry self update
+
 install:
 	poetry install
 
