@@ -3,9 +3,6 @@ setup: update-poetry update-python install
 update-poetry:
 	pip install --upgrade poetry
 
-update-python:
-	apt install python
-
 install:
 	poetry install
 
