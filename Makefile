@@ -1,7 +1,7 @@
 setup: update-poetry install
 
 update-poetry:
-	poetry self update
+	pip --upgrade poetry
 
 install:
 	poetry install
