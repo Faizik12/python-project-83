@@ -1,5 +1,7 @@
 setup: update-poetry install
 
+full-test: lint test
+
 update-poetry:
 	pip install --upgrade poetry
 
