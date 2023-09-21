@@ -1,4 +1,4 @@
-name: checking-correctness
+name: check
 
 on:
   - push
@@ -18,10 +18,8 @@ jobs:
         run: |
           pip install poetry
           make install
-      - name: Run test
-        run: make test
-      - name: Run lint
-        run: make lint
+      - name: Run mypy, linter and pytest
+        run: make check
       - name: Publish code coverage
         uses: paambaati/codeclimate-action@v5
         env:

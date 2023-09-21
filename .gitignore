@@ -1,4 +1,9 @@
+.mypy_cache/
+.pytest_cache/
 .venv/
+.vscode/
 __pycache__/
-dict/
+dist/
 .coverage
+.env
+coverage.xml

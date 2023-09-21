@@ -1,12 +1,18 @@
-setup: update-poetry install
+setup: update-poetry install load-scheme
 
-full-test: lint test
+load-scheme:
+	psql page-analyzer < database.sql
+
+check: checker lint test
 
 update-poetry:
 	pip install --upgrade poetry
 
 install:
 	poetry install
+
+checker:
+	poetry run mypy page_analyzer
 
 lint:
 	poetry run flake8 page_analyzer
