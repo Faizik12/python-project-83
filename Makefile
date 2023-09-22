@@ -1,12 +1,7 @@
-setup: update-poetry install load-scheme
-
 load-scheme:
 	psql page-analyzer < database.sql
 
 check: checker lint test
-
-update-poetry:
-	pip install --upgrade poetry
 
 install:
 	poetry install
@@ -29,3 +24,5 @@ dev:
 PORT ?= 8000
 start:
 	poetry run gunicorn -w 5 -b 0.0.0.0:$(PORT) page_analyzer:app
+
+.PHONY: setup load-scheme check update-poetry install checker lint test test-coverage dev start
