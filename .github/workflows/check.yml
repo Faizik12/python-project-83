@@ -25,7 +25,7 @@ jobs:
           postgresql password: postgres
       - name: Make db
         run: |
-          systemctl start postgresql
+          sudo systemctl start postgresql
           make build
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
