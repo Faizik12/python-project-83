@@ -28,17 +28,18 @@ jobs:
           sudo systemctl start postgresql
           make build
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          DATABASE_URL: ${{ variables.DATABASE_URL }}
       - name: Run mypy, linter and pytest
         run: make check
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          DATABASE_URL: ${{ variables.DATABASE_URL }}
       - name: Publish code coverage
         uses: paambaati/codeclimate-action@v5
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ variables.DATABASE_URL }}
         with:
           coverageCommand: make test-coverage
           debug: true 
