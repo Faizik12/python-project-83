@@ -24,6 +24,7 @@ jobs:
           postgresql version: '11' 
           postgresql password: postgres
       - name: Make db
+        run: systemctl start postgresql
         run: make build
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
