@@ -3,6 +3,7 @@
 .venv/
 .vscode/
 __pycache__/
+htmlcov/
 dist/
 .coverage
 .env

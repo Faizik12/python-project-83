@@ -1,7 +1,7 @@
-load-scheme:
-	psql page-analyzer < database.sql
-
 check: checker lint test
+
+build: install
+	psql $(DATABASE_URL) -a -f database.sql
 
 install:
 	poetry install
@@ -25,4 +25,4 @@ PORT ?= 8000
 start:
 	poetry run gunicorn -w 5 -b 0.0.0.0:$(PORT) page_analyzer:app
 
-.PHONY: setup load-scheme check update-poetry install checker lint test test-coverage dev start
+.PHONY: check build install checker lint test test-coverage dev start
