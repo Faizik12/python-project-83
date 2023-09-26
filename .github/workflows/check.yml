@@ -18,12 +18,24 @@ jobs:
         run: |
           pip install poetry
           make install
+      - name: Set up Postgresql
+        - uses: harmon758/postgresql-action@v1
+          with:
+            postgresql version: 14
+            postgresql password: postgres
+      - name: Make db
+        run: make build
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       - name: Run mypy, linter and pytest
         run: make check
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       - name: Publish code coverage
         uses: paambaati/codeclimate-action@v5
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         with:
           coverageCommand: make test-coverage
           debug: true 
