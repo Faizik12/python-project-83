@@ -18,32 +18,49 @@ def test_insert(connection):
     fields = ['name']
     data = {'name': 'https://www.example.com'}
 
-    assert insert_data(connection, table, fields, data)
+    assert insert_data(connection=connection,
+                       table=table,
+                       fields=fields,
+                       data=data)
 
-    assert not insert_data(connection, false_table, fields, data)
+    assert not insert_data(connection=connection,
+                           table=false_table,
+                           fields=fields,
+                           data=data)
 
 
 def test_select(connection):
     table = 'urls'
-    selection_fields = ['name', 'created_at']
-    filter_ = ('id', '1')
-    sort = ('created_at', 'DESC')
+    selection_fields = [('urls', 'name'), ('urls', 'created_at')]
+    joining = (('url_checks', 'url_id'), 'id')
+    condition = (('urls', 'id'), '1')
+    sort = [(('urls', 'created_at'), 'DESC'),
+            (('urls', 'created_at'), 'DESC')]
 
-    result_1 = select_data(
-        connection,
-        table,
-        selection_fields,
-        filter_=filter_,
-        sorting=sort,
-    )
+    result_1 = select_data(connection=connection,
+                           table=table,
+                           fields=selection_fields,
+                           distinct=('urls', 'created_at'),
+                           joining=joining,
+                           filtering=condition,
+                           sorting=sort)  # type: ignore # sort match the scheme
+
     assert result_1 == []
 
     insertion_fields = ['name']
     data = {'name': 'https://www.example.com'}
-    insert_data(connection, table, insertion_fields, data)
+    insert_data(connection=connection,
+                table=table,
+                fields=insertion_fields,
+                data=data)
 
-    result_3 = select_data(connection, table, selection_fields)
-    assert data['name'] in result_3[0]['name']  # type: ignore # result not bool
+    result_2 = select_data(connection=connection,
+                           table=table,
+                           fields=selection_fields)
+
+    assert data['name'] in result_2[0]['name']  # type: ignore # result not bool
 
     false_table = 'url'
-    assert not select_data(connection, false_table, selection_fields)
+    assert not select_data(connection=connection,
+                           table=false_table,
+                           fields=selection_fields)

@@ -9,7 +9,7 @@
                     <tbody>
                         <tr>
                             <td>ID</td>
-                            <td>1</td>
+                            <td>{{ url.id }}</td>
                         </tr>
                         <tr>
                             <td>Имя</td>
@@ -23,7 +23,7 @@
                 </table>
             </div>
             <h2 class="mt-5 mb-3">Проверки</h2>
-            <form method="get" action="#">
+            <form method="post" action="{{ url_for('post_checks', id=url.id) }}">
                 <input type="submit" class="btn btn-primary" value="Запустить проверку">
             </form>
             <div>
@@ -38,8 +38,20 @@
                             <th>Дата создания</th>
                         </tr>
                     </thead>
+                    {%- if checks %}
                     <tbody>
+                        {%- for check in checks %}
+                        <tr>
+                            <td>{{ check.id }}</td>
+                            <td>{{ check.status_code|default('', true) }}</td>
+                            <td>{{ check.h1|default('', true) }}</td>
+                            <td>{{ check.title|default('', true) }}</td>
+                            <td>{{ check.description|default('', true) }}</td>
+                            <td>{{ check.created_at }}</td>
+                        </tr>
+                        {%- endfor %}
                     </tbody>
+                    {%- endif %}
                 </table>
             </div>
         </div>

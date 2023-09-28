@@ -20,28 +20,41 @@ def fake_funcs(monkeypatch):
     """Changes page_analyzer.urls for all tests to test the app."""
     fake_get_list = MagicMock()
     fake_get_list.return_value = [
-        {'id': '2', 'name': 'https://example.com'},
-        {'id': '1', 'name': 'http://example.com'}]
+        {'id': '2', 'name': 'https://example.com',
+         'created_at': '2000-01-01', 'status_code': 200},
+        {'id': '1', 'name': 'http://example.com',
+         'created_at': '2000-01-02', 'status_code': 200}]
     monkeypatch.setattr('page_analyzer.application.get_list_urls',
                         fake_get_list)
 
     fake_get_specific = MagicMock()
-    fake_get_specific.return_value = {
-        'id': '1',
-        'name': 'http://example.com',
-        'created_at': '2000-01-01'}
+    url_data = {'id': '1',
+                'name': 'http://example.com',
+                'created_at': '2000-01-01'}
+    checks_list = [{'id': 1,
+                    'status_code': 200,
+                    'h1': 'h1',
+                    'title': 'title',
+                    'description': 'description',
+                    'created_at': '2000-01-01'}]
+    fake_get_specific.return_value = (url_data, checks_list)
     monkeypatch.setattr('page_analyzer.application.get_specific_url_info',
                         fake_get_specific)
 
-    fake_create = MagicMock()
-    fake_create.return_value = 1
+    fake_create_url = MagicMock()
+    fake_create_url.return_value = 1
     monkeypatch.setattr('page_analyzer.application.create_url',
-                        fake_create)
+                        fake_create_url)
 
     fake_check = MagicMock()
     fake_check.return_value = 0
     monkeypatch.setattr('page_analyzer.application.check_url',
                         fake_check)
+
+    fake_create_check = MagicMock()
+    fake_create_check.return_value = True
+    monkeypatch.setattr('page_analyzer.application.create_check',
+                        fake_create_check)
 
 
 @pytest.fixture()
@@ -57,7 +70,7 @@ def empty_list_urls(monkeypatch):
 def incorrect_url_identifier(monkeypatch):
     """Changes urls.get_specific_url_info to check for invalid url id output."""
     fake_get_specific = MagicMock()
-    fake_get_specific.return_value = {}
+    fake_get_specific.return_value = [{}, []]
     monkeypatch.setattr('page_analyzer.application.get_specific_url_info',
                         fake_get_specific)
 
@@ -165,3 +178,10 @@ def test_get_url_404_error(client, incorrect_url_identifier):
     response = client.get('/urls/1')
 
     assert response.status_code == 404
+
+
+def test_post_checks(client):
+    response = client.post('/urls/1/checks', follow_redirects=True)
+
+    assert len(response.history) == 1
+    assert response.request.path == '/urls/1'

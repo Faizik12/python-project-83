@@ -19,7 +19,10 @@ from page_analyzer.urls import (
     get_specific_url_info,
     normalize_url,
     validate_url,
+    create_check,
+    get_url_name,
 )
+
 
 load_dotenv()
 
@@ -55,6 +58,7 @@ def post_urls():
     normalized_url = normalize_url(url)  # type: ignore # the url is not None
 
     url_id = check_url(normalized_url)
+
     if url_id is None:
         abort(500)
 
@@ -82,17 +86,34 @@ def get_urls():
 
 
 @app.get('/urls/<int:id>')
-def get_url(id):
-    url_info = get_specific_url_info(id)
+def get_url(id: int):
+    data = get_specific_url_info(id)
 
-    if url_info is None:
+    if data is None:
         abort(500)
 
-    if not url_info:
+    url_data, checks_list = data
+
+    if not url_data:
         abort(404)
 
     messages = get_flashed_messages(with_categories=True)
-    return render_template('url.html', messages=messages, url=url_info)
+    return render_template('url.html',
+                           messages=messages,
+                           url=url_data,
+                           checks=checks_list)
+
+
+@app.post('/urls/<int:id>/checks')
+def post_checks(id: int):
+    url = get_url_name(id)  # noqa F841
+    # Cheks ....
+    status = create_check(url_id=id)
+
+    if status is None:
+        abort(500)
+
+    return redirect(url_for('get_url', id=id))
 
 
 @app.errorhandler(404)

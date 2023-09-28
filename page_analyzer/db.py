@@ -5,7 +5,10 @@ from typing import Any
 
 from dotenv import load_dotenv
 from psycopg2 import DatabaseError, Error, connect, sql
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, RealDictRow
+from psycopg2.extensions import connection
+from psycopg2.sql import Composed, SQL
+
 
 load_dotenv()
 
@@ -17,7 +20,7 @@ CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
 COMPLETE_OPERATION_MESSAGE = 'The {operation} operation is completed'
 
 
-def open_connection():
+def open_connection() -> connection | None:
     conn = None
 
     try:
@@ -29,7 +32,7 @@ def open_connection():
     return conn
 
 
-def insert_data(connection,
+def insert_data(connection: connection,
                 table: str,
                 fields: list[str],
                 data: dict[str, Any],
@@ -40,9 +43,10 @@ def insert_data(connection,
     data.update(created_at=created_at)
 
     query = sql.SQL("INSERT INTO {table} ({fields}) "
-                    "VALUES (%(name)s, %(created_at)s);").format(
+                    "VALUES ({data});").format(
                         table=sql.Identifier(table),
-                        fields=sql.SQL(',').join(map(sql.Identifier, fields)))
+                        fields=sql.SQL(',').join(map(sql.Identifier, fields)),
+                        data=sql.SQL(', ').join(map(sql.Placeholder, fields)))
 
     try:
         with connection.cursor() as cursor:
@@ -57,36 +61,92 @@ def insert_data(connection,
     return True
 
 
-def select_data(connection,
-                table: str,
-                fields: list[str],
-                filter_: tuple[str, str] | None = None,
-                sorting: tuple[str, str] | None = None,
-                ) -> list[dict] | None:
+def _get_selection_string(table: str,
+                          fields: list[tuple[str, str]],
+                          distinct: tuple[str, str] | None = None,
+                          joining: tuple[tuple[str, str], str] | None = None,
+                          ) -> Composed:
 
-    query = sql.SQL("SELECT {fields} FROM {table}\n").format(
+    selection_string = 'SELECT{distinct} {fields} FROM {table}\n'
+    selection_fields = sql.SQL(',').join(
+        sql.Identifier(table) + sql.SQL('.') + sql.Identifier(field)
+        for table, field in fields)
+
+    if distinct:
+        distinct_string: SQL | Composed
+        distinct_string = sql.SQL(' DISTINCT ON ({table}.{field})').format(
+            table=sql.Identifier(distinct[0]),
+            field=sql.Identifier(distinct[1]))
+    else:
+        distinct_string = sql.SQL('')
+
+    query = sql.SQL(selection_string).format(
         table=sql.Identifier(table),
-        fields=sql.SQL(',').join(map(sql.Identifier, fields)),)
+        distinct=distinct_string,
+        fields=selection_fields)
+
+    if joining:
+        join_string = 'LEFT JOIN {joining_table} ON {main_table}.{main_field} '\
+                      '= {joining_table}.{joining_field}\n'
+        main_table = sql.Identifier(table)
+        main_field = sql.Identifier(joining[1])
+        joining_table = sql.Identifier(joining[0][0])
+        joining_field = sql.Identifier(joining[0][1])
+        query = query + sql.SQL(join_string).format(
+            main_table=main_table,
+            main_field=main_field,
+            joining_table=joining_table,
+            joining_field=joining_field)
+    return query
+
+
+def select_data(connection: connection,
+                table: str,
+                fields: list[tuple[str, str]],
+                distinct: tuple[str, str] | None = None,
+                joining: tuple[tuple[str, str], str] | None = None,
+                filtering: tuple[tuple[str, str], Any] | None = None,
+                sorting: list[tuple[tuple[str, str], str]] | None = None,
+                ) -> list[RealDictRow] | None:
+
+    query = _get_selection_string(table=table,
+                                  fields=fields,
+                                  distinct=distinct,
+                                  joining=joining)
     query_end = sql.SQL(';')
 
-    if filter_ is not None:
-        where = sql.SQL('WHERE {field} = {id}\n').format(
-            field=sql.Identifier(filter_[0]),
-            id=sql.Literal(filter_[1]))
-        query = query + where
+    if filtering is not None:
+        filtering_table = sql.Identifier(filtering[0][0])
+        filtering_field = sql.Identifier(filtering[0][1])
+        entry_id = sql.Literal(filtering[1])
+        where = sql.SQL('WHERE {table}.{field} = {id}\n').format(
+            table=filtering_table,
+            field=filtering_field,
+            id=entry_id)
+        query += where
 
+    # I wanted to implement through generating expressions
+    # but I couldn't shorten the string
     if sorting is not None:
-        sort = sql.SQL('ORDER BY {field} {order}').format(
-            field=sql.Identifier(sorting[0]),
-            order=sql.SQL(sorting[1]))
-        query = query + sort
+        temp = '{table}.{field} {order}'
+        sorting_fields = []
+        for field, order in sorting:
+            sorting_fields.append(sql.SQL(temp).format(
+                table=sql.Identifier(field[0]),
+                field=sql.Identifier(field[1]),
+                order=sql.SQL(order)
+            ))
+
+        sort = sql.SQL('ORDER BY {sorting_fields}').format(
+            sorting_fields=sql.SQL(',').join(sorting_fields))
+        query += sort
 
     result_query = query + query_end
-
+    print(result_query.as_string(connection))
     try:
         with connection.cursor() as cursor:
             cursor.execute(result_query)
-            data = cursor.fetchall()
+            data: list[RealDictRow] = cursor.fetchall()  # type: ignore
     except Error as error:
         connection.rollback()
         connection.close()
@@ -97,7 +157,7 @@ def select_data(connection,
     return data
 
 
-def commit_changes(connection) -> None:
+def commit_changes(connection: connection) -> None:
     connection.commit()
     connection.close()
     logging.info(CLOSE_CONNECTION_MESSAGE)
