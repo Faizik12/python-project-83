@@ -1,4 +1,4 @@
-check: checker lint test
+check: lint checker test
 
 build: install
 	psql $(DATABASE_URL) -a -f database.sql

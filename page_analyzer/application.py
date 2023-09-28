@@ -21,6 +21,8 @@ from page_analyzer.urls import (
     validate_url,
     create_check,
     get_url_name,
+    extract_necessary_data,
+    get_site_response,
 )
 
 
@@ -106,9 +108,22 @@ def get_url(id: int):
 
 @app.post('/urls/<int:id>/checks')
 def post_checks(id: int):
-    url = get_url_name(id)  # noqa F841
-    # Cheks ....
-    status = create_check(url_id=id)
+    url = get_url_name(id)
+
+    if url is None:
+        abort(500)
+
+    if not url:
+        abort(404)
+
+    response = get_site_response(url)
+
+    if response is None:
+        flash('Произошла ошибка при проверке', INFO_MESSAGE_TYPE)
+        return redirect(url_for('get_url', id=id))
+
+    data = extract_necessary_data(response)
+    status = create_check(id, data)
 
     if status is None:
         abort(500)

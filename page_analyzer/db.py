@@ -5,10 +5,9 @@ from typing import Any
 
 from dotenv import load_dotenv
 from psycopg2 import DatabaseError, Error, connect, sql
-from psycopg2.extras import RealDictCursor, RealDictRow
 from psycopg2.extensions import connection
-from psycopg2.sql import Composed, SQL
-
+from psycopg2.extras import RealDictCursor, RealDictRow
+from psycopg2.sql import SQL, Composed
 
 load_dotenv()
 

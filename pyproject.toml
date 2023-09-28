@@ -16,6 +16,8 @@ python-dotenv = "^1.0.0"
 psycopg2-binary = "^2.9.7"
 validators = "^0.22.0"
 types-psycopg2 = "^2.9.21.13"
+requests = "^2.31.0"
+types-requests = "^2.31.0.6"
 
 
 [tool.poetry.group.dev.dependencies]

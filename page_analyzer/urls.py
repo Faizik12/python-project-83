@@ -1,22 +1,25 @@
 import logging
+import re
+from typing import Any
 from urllib.parse import urlparse
 
+import requests
 from page_analyzer.db import (
     commit_changes,
     insert_data,
     open_connection,
     select_data,
 )
-from validators import url as url_validator
 from psycopg2.extras import RealDictRow
-
+from validators import url as url_validator
 
 URLS_TABLE = 'urls'
 URL_CHECKS_TABLE = 'url_checks'
 
 URL_CREATION_MESSAGE = 'The URL information has been added to the database'
 URL_RECEIVING_MESSAGE = 'The URL information was obtained from the database'
-CONNECTION_ERROR = 'Error when trying to connect to the database'
+SITE_CONNECTION_MESSAGE = 'The response from the site was received'
+DB_CONNECTION_ERROR = 'Error when trying to connect to the database'
 INSERT_ERROR = 'Error when trying to insert data'
 SELECT_ERROR = 'Error when trying to select data'
 
@@ -43,7 +46,7 @@ def create_url(url: str) -> int | None:
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     insert_status = insert_data(connection=connection,
@@ -70,28 +73,24 @@ def create_url(url: str) -> int | None:
     return url_id
 
 
-def create_check(url_id: int,
-                 status_code: int = 0,  # temporary
-                 h1: str | None = None,
-                 title: str | None = None,
-                 description: str | None = None) -> bool | None:
+def create_check(url_id: int, data: dict[str, Any],) -> bool | None:
+    data.setdefault('status_code')
+    data.setdefault('h1')
+    data.setdefault('title')
+    data.setdefault('description')
+    data.update(url_id=url_id)
     fields = ['url_id', 'status_code', 'h1',
               'title', 'description']
-    insertion_date = {'url_id': url_id,
-                      'status_code': status_code,
-                      'h1': h1,
-                      'title': title,
-                      'description': description}
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     insert_status = insert_data(connection=connection,
                                 table=URL_CHECKS_TABLE,
                                 fields=fields,
-                                data=insertion_date)
+                                data=data)
     if not insert_status:
         logging.error(INSERT_ERROR)
         return None
@@ -107,7 +106,7 @@ def check_url(url: str) -> int | None:
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     list_urls = select_data(connection=connection,
@@ -149,7 +148,7 @@ def get_list_urls() -> list[RealDictRow] | None:
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     list_urls = select_data(connection=connection,
@@ -179,7 +178,7 @@ def get_specific_url_info(
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     list_urls = select_data(connection=connection,
@@ -227,7 +226,7 @@ def get_url_name(url_id: int) -> str | None:
 
     connection = open_connection()
     if connection is None:
-        logging.error(CONNECTION_ERROR)
+        logging.error(DB_CONNECTION_ERROR)
         return None
 
     list_urls = select_data(connection=connection,
@@ -249,3 +248,41 @@ def get_url_name(url_id: int) -> str | None:
     commit_changes(connection)
     logging.info(URL_RECEIVING_MESSAGE)
     return url
+
+
+def get_site_response(url: str, client=requests) -> requests.Response | None:
+    response = None
+
+    try:
+        response = client.get(url)
+    except requests.ConnectionError as error:
+        logging.exception(error)
+        return response
+
+    logging.info(SITE_CONNECTION_MESSAGE)
+    return response
+
+
+def extract_necessary_data(response: requests.Response) -> dict[str, Any]:
+    html = response.text
+
+    status_code = response.status_code
+
+    result: dict[str, Any] = {'status_code': status_code}
+
+    h1_pattern = r'<h1.*?>(.*)</h1>'
+    h1_match = re.search(h1_pattern, html)
+
+    title_pattern = r'<title.*?>(.*)</title>'
+    title_match = re.search(title_pattern, html)
+
+    desc_pattern = r'<meta name="description" content="(.*)">'
+    description_match = re.search(desc_pattern, html)
+
+    matches_fields = ('h1', 'title', 'description')
+    matches_value = (h1_match, title_match, description_match)
+    matches = {key: value.group(1) if value is not None else None
+               for key, value in zip(matches_fields, matches_value)}
+    result.update(matches)
+
+    return result

@@ -1,15 +1,17 @@
 import datetime
 
 from page_analyzer.urls import (
+    _normalize_created_at,
     check_url,
+    create_check,
     create_url,
+    extract_necessary_data,
     get_list_urls,
+    get_site_response,
     get_specific_url_info,
+    get_url_name,
     normalize_url,
     validate_url,
-    get_url_name,
-    create_check,
-    _normalize_created_at,
 )
 
 
@@ -116,10 +118,10 @@ def test_create_check(fake_connection,
                       fake_insert,
                       fake_commit):
     url_id = 1
-    status_code = 200
-    h1 = 'h1'
-    title = 'title'
-    description = 'description'
+    data = {'status_code': 200,
+            'h1': 'h1',
+            'title': 'title',
+            'description': 'description'}
     table = 'url_checks'
     insertion_fields = ['url_id', 'status_code', 'h1',
                         'title', 'description']
@@ -129,11 +131,7 @@ def test_create_check(fake_connection,
                      'title': 'title',
                      'description': 'description'}
 
-    create_check(url_id=url_id,
-                 status_code=status_code,
-                 h1=h1,
-                 title=title,
-                 description=description)
+    create_check(url_id=url_id, data=data)
     insert_call_args = fake_insert.call_args.kwargs.values()
 
     assert fake_connection.called
@@ -148,16 +146,12 @@ def test_create_check_connection_error(fake_bad_connection,
                                        fake_insert,
                                        fake_commit):
     url_id = 1
-    status_code = 200
-    h1 = 'h1'
-    title = 'title'
-    description = 'description'
+    data = {'status_code': 200,
+            'h1': 'h1',
+            'title': 'title',
+            'description': 'description'}
 
-    status = create_check(url_id=url_id,
-                          status_code=status_code,
-                          h1=h1,
-                          title=title,
-                          description=description)
+    status = create_check(url_id=url_id, data=data)
 
     assert status is None
     assert fake_bad_connection.called
@@ -169,16 +163,12 @@ def test_create_check_insert_error(fake_connection,
                                    fake_bad_insert,
                                    fake_commit):
     url_id = 1
-    status_code = 200
-    h1 = 'h1'
-    title = 'title'
-    description = 'description'
+    data = {'status_code': 200,
+            'h1': 'h1',
+            'title': 'title',
+            'description': 'description'}
 
-    status = create_check(url_id=url_id,
-                          status_code=status_code,
-                          h1=h1,
-                          title=title,
-                          description=description)
+    status = create_check(url_id=url_id, data=data)
 
     assert status is None
     assert fake_connection.called
@@ -440,3 +430,22 @@ def test__normalizer_created_at():
 
     assert isinstance(data[0]['created_at'], datetime.date)
     assert isinstance(data[1]['created_at'], datetime.date)
+
+
+def test_get_site_response(fakeclient):
+    url = 'http://example.com'
+    response = get_site_response(url)
+
+    assert response == url
+
+
+def test_extract_necessary_data(fakeresponse):
+    response = fakeresponse()
+    result_data = {'status_code': 200,
+                   'h1': 'Example - simple html',
+                   'title': 'Example',
+                   'description': 'Example — just html to check'}
+
+    result = extract_necessary_data(response)
+
+    assert result_data == result

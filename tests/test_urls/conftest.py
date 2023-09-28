@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import page_analyzer.urls
 import pytest
+import requests
 
 
 @pytest.fixture()
@@ -94,3 +95,25 @@ def fake_empty_select(monkeypatch):
     monkeypatch.setattr(page_analyzer.urls, 'select_data', mock)
 
     return mock
+
+
+@pytest.fixture()
+def fakeclient(monkeypatch):
+    
+    def fake_get(url):
+        return url
+
+    monkeypatch.setattr(requests, 'get', fake_get)
+
+
+
+@pytest.fixture()
+def fakeresponse():
+    class FakeResponse:
+        def __init__(self):
+            with open('tests/fixtures/sample.html') as file:
+                html = file.read()
+            self.text = html
+            self.status_code = 200
+
+    return FakeResponse
