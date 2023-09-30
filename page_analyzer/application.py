@@ -128,6 +128,7 @@ def post_checks(id: int):
     if status is None:
         abort(500)
 
+    flash('Страница успешно проверена', SUCCES_MESSAGE_TYPE)
     return redirect(url_for('get_url', id=id))
 
 
