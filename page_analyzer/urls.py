@@ -254,7 +254,7 @@ def get_site_response(url: str) -> requests.Response | None:
     response = None
 
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=1)
     except requests.ConnectionError as error:
         logging.exception(error)
         return response
