@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import page_analyzer.urls
 import pytest
-import requests
 
 
 @pytest.fixture()
@@ -99,12 +98,11 @@ def fake_empty_select(monkeypatch):
 
 @pytest.fixture()
 def fakeclient(monkeypatch):
-    
+
     def fake_get(url):
         return url
 
-    monkeypatch.setattr(requests, 'get', fake_get)
-
+    monkeypatch.setattr(page_analyzer.urls.requests, 'get', fake_get)
 
 
 @pytest.fixture()

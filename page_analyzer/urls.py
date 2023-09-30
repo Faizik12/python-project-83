@@ -1,9 +1,9 @@
 import logging
-import re
 from typing import Any
 from urllib.parse import urlparse
 
 import requests
+from bs4 import BeautifulSoup
 from page_analyzer.db import (
     commit_changes,
     insert_data,
@@ -250,11 +250,11 @@ def get_url_name(url_id: int) -> str | None:
     return url
 
 
-def get_site_response(url: str, client=requests) -> requests.Response | None:
+def get_site_response(url: str) -> requests.Response | None:
     response = None
 
     try:
-        response = client.get(url)
+        response = requests.get(url)
     except requests.ConnectionError as error:
         logging.exception(error)
         return response
@@ -264,24 +264,30 @@ def get_site_response(url: str, client=requests) -> requests.Response | None:
 
 
 def extract_necessary_data(response: requests.Response) -> dict[str, Any]:
-    html = response.text
-
+    content = response.text
     status_code = response.status_code
-
     result: dict[str, Any] = {'status_code': status_code}
 
-    h1_pattern = r'<h1.*?>(.*)</h1>'
-    h1_match = re.search(h1_pattern, html)
+    html_tree = BeautifulSoup(content, 'html.parser')
 
-    title_pattern = r'<title.*?>(.*)</title>'
-    title_match = re.search(title_pattern, html)
+    tag_h1 = html_tree.h1
+    tag_title = html_tree.title
+    tag_meta_desc = html_tree.find('meta', attrs={'name': 'description'})
 
-    desc_pattern = r'<meta name="description" content="(.*)">'
-    description_match = re.search(desc_pattern, html)
+    content_h1: str | None = None
+    content_title: str | None = None
+    content_desc: str | None = None
+
+    if tag_h1 is not None:
+        content_h1 = str(tag_h1.string)
+    if tag_title is not None:
+        content_title = str(tag_title.string)
+    if tag_meta_desc is not None:
+        content_desc = str(tag_meta_desc.get('content'))  # type: ignore
 
     matches_fields = ('h1', 'title', 'description')
-    matches_value = (h1_match, title_match, description_match)
-    matches = {key: value.group(1) if value is not None else None
+    matches_value = (content_h1, content_title, content_desc)
+    matches = {key: value if value is not None else None
                for key, value in zip(matches_fields, matches_value)}
     result.update(matches)
 
