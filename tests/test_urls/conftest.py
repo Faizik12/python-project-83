@@ -99,7 +99,7 @@ def fake_empty_select(monkeypatch):
 @pytest.fixture()
 def fakeclient(monkeypatch):
 
-    def fake_get(url):
+    def fake_get(url, **kwargs):
         return url
 
     monkeypatch.setattr(page_analyzer.urls.requests, 'get', fake_get)

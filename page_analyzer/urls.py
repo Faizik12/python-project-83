@@ -252,9 +252,10 @@ def get_url_name(url_id: int) -> str | None:
 
 def get_site_response(url: str) -> requests.Response | None:
     response = None
-
+    print(requests.get)
     try:
         response = requests.get(url, timeout=1)
+        response.raise_for_status()
     except requests.ConnectionError as error:
         logging.exception(error)
         return response
