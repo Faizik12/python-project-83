@@ -436,7 +436,7 @@ def test_get_site_response(fakeclient):
     url = 'http://example.com'
     response = get_site_response(url)
 
-    assert response == url
+    assert fakeclient.called
 
 
 def test_extract_necessary_data(fakeresponse):

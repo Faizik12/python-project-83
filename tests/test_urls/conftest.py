@@ -99,10 +99,15 @@ def fake_empty_select(monkeypatch):
 @pytest.fixture()
 def fakeclient(monkeypatch):
 
-    def fake_get(url, **kwargs):
-        return url
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
 
-    monkeypatch.setattr(page_analyzer.urls.requests, 'get', fake_get)
+    mock = MagicMock()
+    mock.return_value = FakeResponse()
+
+    monkeypatch.setattr(page_analyzer.urls.requests, 'get', mock)
+    return mock
 
 
 @pytest.fixture()
