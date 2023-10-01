@@ -434,7 +434,7 @@ def test__normalizer_created_at():
 
 def test_get_site_response(fakeclient):
     url = 'http://example.com'
-    response = get_site_response(url)
+    get_site_response(url)
 
     assert fakeclient.called
 
