@@ -141,7 +141,7 @@ def select_data(connection: connection,
         query += sort
 
     result_query = query + query_end
-    print(result_query.as_string(connection))
+
     try:
         with connection.cursor() as cursor:
             cursor.execute(result_query)
