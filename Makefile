@@ -13,10 +13,10 @@ lint:
 	poetry run flake8 page_analyzer
 
 test:
-	poetry run pytest
+	poetry run pytest -c my_pytest.ini
 
 test-coverage:
-	poetry run pytest --cov --cov-report xml
+	poetry run pytest -c my_pytest.ini --cov --cov-report xml
 
 dev:
 	poetry run flask --app page_analyzer --debug run
