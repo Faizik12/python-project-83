@@ -21,7 +21,7 @@ jobs:
           postgresql version: '14' 
           postgresql password: postgres
 
-      - name: Сreate an application
+      - name: Сreating an application
         run: |
           pip install poetry
           sudo systemctl start postgresql

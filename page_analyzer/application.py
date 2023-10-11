@@ -1,34 +1,23 @@
+from __future__ import annotations
+
 import logging
 import os
+from typing import NoReturn, TYPE_CHECKING
 
-from dotenv import load_dotenv
-from flask import (
-    Flask,
-    abort,
-    flash,
-    get_flashed_messages,
-    redirect,
-    render_template,
-    request,
-    url_for,
-)
-from page_analyzer.urls import (
-    check_url,
-    create_url,
-    get_list_urls,
-    get_specific_url_info,
-    normalize_url,
-    validate_url,
-    create_check,
-    get_url_name,
-    extract_necessary_data,
-    get_site_response,
-)
+import dotenv
+import flask
 
+from page_analyzer import site_processing
+from page_analyzer import url_db_handler
+from page_analyzer import url_processing
 
-load_dotenv()
+if TYPE_CHECKING:
+    from werkzeug.exceptions import HTTPException
+    from werkzeug.wrappers import Response
 
-app = Flask(__name__)
+dotenv.load_dotenv()
+
+app = flask.Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 
 WARNING_MESSAGE_TYPE = 'danger'
@@ -42,103 +31,136 @@ logging.basicConfig(level=logging.INFO,
 
 
 @app.get('/')
-def index():
-    messages = get_flashed_messages(with_categories=True)
-    return render_template('index.html', messages=messages)
+def index() -> str:
+    """Return the main page."""
+    messages = flask.get_flashed_messages(with_categories=True)
+    return flask.render_template('index.html', messages=messages)
 
 
 @app.post('/urls')
-def post_urls():
-    url = request.form.get('url')
-    error = validate_url(url)  # type: ignore # the url is not None
+def post_urls() -> Response | tuple[str, int] | NoReturn:
+    """Process a request to create a url record."""
+    url = flask.request.form.get('url', '')
+    error = url_processing.validate_url(url)
 
     if error:
-        flash(error, WARNING_MESSAGE_TYPE)
-        messages = get_flashed_messages(with_categories=True)
-        return render_template('index.html', messages=messages, url=url), 422
+        flask.flash(error, WARNING_MESSAGE_TYPE)
+        messages = flask.get_flashed_messages(with_categories=True)
+        return flask.render_template('index.html',
+                                     messages=messages,
+                                     url=url), 422
 
-    normalized_url = normalize_url(url)  # type: ignore # the url is not None
+    normalized_url = url_processing.normalize_url(url)
 
-    url_id = check_url(normalized_url)
+    connection = url_db_handler.open_connection()
+    if connection is None:
+        flask.abort(500)
 
+    url_id = url_db_handler.check_url(connection, normalized_url)
     if url_id is None:
-        abort(500)
+        url_db_handler.close_connection(connection)
+        flask.abort(500)
 
     if url_id:
-        flash('Страница уже существует', INFO_MESSAGE_TYPE)
-        return redirect(url_for('get_url', id=url_id)), 302
+        url_db_handler.close_connection(connection)
+        flask.flash('Страница уже существует', INFO_MESSAGE_TYPE)
+        return flask.redirect(flask.url_for('get_url', id=url_id))
 
-    url_id = create_url(normalized_url)
+    url_id = url_db_handler.create_url(connection, normalized_url)
     if url_id is None:
-        abort(500)
+        url_db_handler.close_connection(connection)
+        flask.abort(500)
 
-    flash('Страница успешно добавлена', SUCCES_MESSAGE_TYPE)
-    return redirect(url_for('get_url', id=url_id)), 302
+    url_db_handler.close_connection(connection)
+    flask.flash('Страница успешно добавлена', SUCCES_MESSAGE_TYPE)
+    return flask.redirect(flask.url_for('get_url', id=url_id))
 
 
 @app.get('/urls')
-def get_urls():
-    list_urls = get_list_urls()
+def get_urls() -> str | NoReturn:
+    """Return the page with the list of URLs."""
+    connection = url_db_handler.open_connection()
+    if connection is None:
+        flask.abort(500)
+
+    list_urls = url_db_handler.get_list_urls(connection=connection)
 
     if list_urls is None:
-        abort(500)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(500)
 
-    messages = get_flashed_messages(with_categories=True)
-    return render_template('urls.html', messages=messages, urls=list_urls)
+    url_db_handler.close_connection(connection=connection)
+    messages = flask.get_flashed_messages(with_categories=True)
+    return flask.render_template('urls.html', messages=messages, urls=list_urls)
 
 
 @app.get('/urls/<int:id>')
-def get_url(id: int):
-    data = get_specific_url_info(id)
+def get_url(id: int) -> str | NoReturn:
+    """Return the page to a specific URL."""
+    connection = url_db_handler.open_connection()
+    if connection is None:
+        flask.abort(500)
 
+    data = url_db_handler.get_specific_url_info(connection, id)
     if data is None:
-        abort(500)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(500)
 
     url_data, checks_list = data
-
     if not url_data:
-        abort(404)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(404)
 
-    messages = get_flashed_messages(with_categories=True)
-    return render_template('url.html',
-                           messages=messages,
-                           url=url_data,
-                           checks=checks_list)
+    url_db_handler.close_connection(connection=connection)
+    messages = flask.get_flashed_messages(with_categories=True)
+    return flask.render_template('url.html',
+                                 messages=messages,
+                                 url=url_data,
+                                 checks=checks_list)
 
 
 @app.post('/urls/<int:id>/checks')
-def post_checks(id: int):
-    url = get_url_name(id)
+def post_checks(id: int) -> Response | NoReturn:
+    """Process a request to create a URL verification record."""
+    connection = url_db_handler.open_connection()
+    if connection is None:
+        flask.abort(500)
 
+    url = url_db_handler.get_url_name(connection, id)
     if url is None:
-        abort(500)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(500)
 
     if not url:
-        abort(404)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(404)
 
-    response = get_site_response(url)
-
+    response = site_processing.get_site_response(url)
     if response is None:
-        flash('Произошла ошибка при проверке', INFO_MESSAGE_TYPE)
-        return redirect(url_for('get_url', id=id))
+        url_db_handler.close_connection(connection=connection)
+        flask.flash('Произошла ошибка при проверке', INFO_MESSAGE_TYPE)
+        return flask.redirect(flask.url_for('get_url', id=id))
 
-    data = extract_necessary_data(response)
-    status = create_check(id, data)
-
+    data = site_processing.parse_html_response(response)
+    status = url_db_handler.create_check(connection, id, data)
     if status is None:
-        abort(500)
+        url_db_handler.close_connection(connection=connection)
+        flask.abort(500)
 
-    flash('Страница успешно проверена', SUCCES_MESSAGE_TYPE)
-    return redirect(url_for('get_url', id=id))
+    url_db_handler.close_connection(connection=connection)
+    flask.flash('Страница успешно проверена', SUCCES_MESSAGE_TYPE)
+    return flask.redirect(flask.url_for('get_url', id=id))
 
 
 @app.errorhandler(404)
-def page_not_found(error):
+def page_not_found(error: HTTPException) -> tuple[str, int]:
+    """Handle error 404"""
     logging.exception(error)
-    return render_template('page_not_found.html'), 404
+    return flask.render_template('errors/404.html'), 404
 
 
 @app.errorhandler(500)
-def internal_server_error(error):
+def internal_server_error(error: HTTPException) -> tuple[str, int]:
+    """Handle error 500."""
     logging.exception(error)
-    return render_template('internal_server_error.html'), 500
+    return flask.render_template('errors/500.html'), 500
