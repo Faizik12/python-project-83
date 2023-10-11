@@ -94,7 +94,8 @@ def check_url(connection: connection, url: str) -> int | None:
 def _normalize_created_at(record_list: list[RealDictRow]) -> None:
     """Change the created_at of records leaving only the date."""
     for record in record_list:
-        record['created_at'] = record['created_at'].date()
+        if record['created_at'] is not None:
+            record['created_at'] = record['created_at'].date()
 
 
 def get_list_urls(connection: connection) -> list[RealDictRow] | None:
