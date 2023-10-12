@@ -161,12 +161,12 @@ class TestCheckURL:
 def test_normalize_created_at():
     record_list = [
         psycopg2.extras.RealDictRow(created_at=datetime(2001, 1, 1, 1, 1, 1)),
-        psycopg2.extras.RealDictRow(created_at=datetime(2002, 2, 2, 2, 2, 2))]
+        psycopg2.extras.RealDictRow(created_at=None)]
 
     url_db_operations._normalize_created_at(record_list)
 
     assert record_list[0]['created_at'] == date(2001, 1, 1)
-    assert record_list[1]['created_at'] == date(2002, 2, 2)
+    assert record_list[1]['created_at'] is None
 
 
 class TestGetListURLs:
