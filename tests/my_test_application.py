@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import datetime
 import os
 from unittest.mock import MagicMock
 
-import flask
+from flask import get_flashed_messages
 import psycopg2.extras
 import pytest
 
@@ -40,14 +40,14 @@ def client():
 @pytest.fixture()
 def mock_url_db(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr('page_analyzer.application.url_db_handler', mock)
+    monkeypatch.setattr('page_analyzer.application.url_db', mock)
     return mock
 
 
 @pytest.fixture()
-def mock_site_proc(monkeypatch):
+def mock_webutils(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr('page_analyzer.application.site_processing', mock)
+    monkeypatch.setattr('page_analyzer.application.webutils', mock)
     return mock
 
 
@@ -67,7 +67,7 @@ class TestPostUrl:
         mock_url_db.create_url.return_value = 1
         with client:
             response = client.post(self.url, data={'url': 'http://example.com'})
-            message, *_ = flask.get_flashed_messages(with_categories=True)
+            message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.open_connection.called
         assert mock_url_db.close_connection.called
@@ -125,7 +125,7 @@ class TestPostUrl:
         with client:
             response = client.post(self.url,
                                    data={'url': 'http://example.com'})
-            message, *_ = flask.get_flashed_messages(with_categories=True)
+            message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 302
@@ -146,27 +146,27 @@ class TestGetURLs:
     url = '/urls'
 
     def test_get_urls_success(self, client, mock_url_db):
-        mock_url_db.get_list_urls.return_value = [
+        mock_url_db.get_urls.return_value = [
             psycopg2.extras.RealDictRow(
                 id=2,
-                name='https://example.com',
-                created_at=date(2000, 1, 2),
+                name='https://example2.com',
+                created_at=datetime(2002, 2, 2, 2, 2, 2),
                 status_code=200),
             psycopg2.extras.RealDictRow(
                 id=1,
-                name='http://example.com',
-                created_at=date(2000, 1, 1),
+                name='http://example1.com',
+                created_at=datetime(2001, 1, 1, 1, 1, 1),
                 status_code=200)]
         response = client.get(self.url)
 
-        list_urls = get_fixture_html('list_urls.html')
+        urls = get_fixture_html('urls.html')
 
         assert mock_url_db.open_connection.called
         assert mock_url_db.close_connection.called
-        assert list_urls in response.text
+        assert urls in response.text
 
     def test_get_urls_empty_list(self, client, mock_url_db):
-        mock_url_db.get_list_urls.return_value = []
+        mock_url_db.get_urls.return_value = []
         response = client.get(self.url)
 
         empty_list_urls = get_fixture_html('empty_list_urls.html')
@@ -180,7 +180,7 @@ class TestGetURLs:
         assert response.status_code == 500
 
     def test_get_urls_get_list_urls_error(self, client, mock_url_db):
-        mock_url_db.get_list_urls.return_value = None
+        mock_url_db.get_urls.return_value = None
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
@@ -194,7 +194,7 @@ class TestGetURL:
         url_data = psycopg2.extras.RealDictRow(
             id=1,
             name='http://example.com',
-            created_at=date(2000, 1, 1))
+            created_at=datetime(2000, 1, 1, 1, 1, 1))
         checks_list = [
             psycopg2.extras.RealDictRow(
                 id=2,
@@ -202,15 +202,16 @@ class TestGetURL:
                 h1='h1',
                 title='title',
                 description='description',
-                created_at=date(2000, 1, 2)),
+                created_at=datetime(2000, 2, 2, 2, 2, 2)),
             psycopg2.extras.RealDictRow(
                 id=1,
                 status_code=200,
                 h1='h1',
                 title='title',
                 description='description',
-                created_at=date(2000, 1, 1))]
-        mock_url_db.get_specific_url_info.return_value = (url_data, checks_list)
+                created_at=datetime(2000, 1, 1, 1, 1, 1))]
+        mock_url_db.get_url.return_value = url_data
+        mock_url_db.get_url_checks.return_value = checks_list
         response = client.get(self.url)
 
         url_page = get_fixture_html('url_page.html')
@@ -225,8 +226,8 @@ class TestGetURL:
 
         assert response.status_code == 500
 
-    def test_get_url_get_specific_url_info_error(self, client, mock_url_db):
-        mock_url_db.get_specific_url_info.return_value = None
+    def test_get_url_get_url_error(self, client, mock_url_db):
+        mock_url_db.get_url.return_value = None
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
@@ -234,21 +235,38 @@ class TestGetURL:
 
     def test_get_url_non_exist_url(self, client, mock_url_db):
         url_data = psycopg2.extras.RealDictRow()
-        mock_url_db.get_specific_url_info.return_value = (url_data, [])
+        mock_url_db.get_url.return_value = url_data
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 404
 
+    def test_get_url_get_url_checks_error(self, client, mock_url_db):
+        url_data = psycopg2.extras.RealDictRow(
+            id=1,
+            name='http://example.com',
+            created_at=datetime(2000, 1, 1, 1, 1, 1))
+        mock_url_db.get_url.return_value = url_data
+        mock_url_db.get_url_checks.return_value = None
+        response = client.get(self.url)
+
+        assert mock_url_db.close_connection.called
+        assert response.status_code == 500
+
 
 class TestPostChecks:
     url = '/urls/1/checks'
 
-    def test_post_checks_success(self, client, mock_url_db, mock_site_proc):
-        mock_site_proc.get_site_response.return_value = FakeResponse()
+    def test_post_checks_success(self, client, mock_url_db, mock_webutils):
+        url_data = psycopg2.extras.RealDictRow(
+            id=1,
+            name='http://example.com',
+            created_at=datetime(2000, 1, 1, 1, 1, 1))
+        mock_url_db.get_url.return_value = url_data
+        mock_webutils.get_site_response.return_value = FakeResponse()
         with client:
             response = client.post(self.url)
-            message, *_ = flask.get_flashed_messages(with_categories=True)
+            message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.open_connection.called
         assert mock_url_db.close_connection.called
@@ -262,15 +280,15 @@ class TestPostChecks:
 
         assert response.status_code == 500
 
-    def test_post_checks_get_url_name_error(self, client, mock_url_db):
-        mock_url_db.get_url_name.return_value = None
+    def test_post_checks_get_url_error(self, client, mock_url_db):
+        mock_url_db.get_url.return_value = None
         response = client.post(self.url)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 500
 
     def test_post_checks_non_exist_url(self, client, mock_url_db):
-        mock_url_db.get_url_name.return_value = ''
+        mock_url_db.get_url.return_value = psycopg2.extras.RealDictRow()
         response = client.post(self.url)
 
         assert mock_url_db.close_connection.called
@@ -279,11 +297,11 @@ class TestPostChecks:
     def test_post_checks_get_site_response_error(self,
                                                  client,
                                                  mock_url_db,
-                                                 mock_site_proc):
-        mock_site_proc.get_site_response.return_value = None
+                                                 mock_webutils):
+        mock_webutils.get_site_response.return_value = None
         with client:
             response = client.post(self.url)
-            message, *_ = flask.get_flashed_messages(with_categories=True)
+            message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 302
@@ -293,7 +311,7 @@ class TestPostChecks:
     def test_post_checks_create_check_error(self,
                                             client,
                                             mock_url_db,
-                                            mock_site_proc):
+                                            mock_webutils):
         mock_url_db.create_check.return_value = None
         response = client.post(self.url)
 

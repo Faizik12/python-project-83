@@ -24,7 +24,7 @@
                                 {{ url.name }}
                             </a>
                             </td>
-                            <td>{{ url.created_at|default('', true) }}</td>
+                            <td>{{ url.created_at.date() if url.created_at else '' }}</td>
                             <td>{{ url.status_code|default('', true) }}</td>
                         </tr>
                         {%- endfor %}

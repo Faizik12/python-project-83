@@ -1,13 +1,20 @@
+import os
+
+import dotenv
 from psycopg2 import sql
 import pytest
 
-from page_analyzer.url_db_handler import db_operations
+from page_analyzer.url_db import db_operations
+
+dotenv.load_dotenv()
+
+DATABASE_URL = os.getenv('DATABASE_URL', '')
 
 
 @pytest.fixture()
 def connection():
     """Creating a connection that will not be committed."""
-    connect = db_operations.open_connection()
+    connect = db_operations.open_connection(DATABASE_URL)
 
     yield connect
 
@@ -26,20 +33,6 @@ def test_generate_selection_string_seccess(connection):
     result = db_operations._generate_selection_string(table=table,
                                                       fields=selection_fields,
                                                       distinct=distinct)
-    assert result.as_string(connection) == expected_string
-
-
-def test_generate_joining_string_seccess(connection):
-    table = 'urls'
-    joining = (('url_checks', 'url_id'), 'id')
-
-    expected = sql.SQL('LEFT JOIN "url_checks" '
-                       'ON "urls"."id" = "url_checks"."url_id"\n')
-    expected_string = expected.as_string(connection)
-
-    result = db_operations._generate_joining_string(table=table,
-                                                    joining=joining)
-
     assert result.as_string(connection) == expected_string
 
 
@@ -74,42 +67,57 @@ class TestInsertData:
         fields = ['name']
         data = {'name': 'https://www.example.com'}
 
-        result = db_operations.insert_data(connection=connection,
+        returning = db_operations.insert_data(connection=connection,
                                            table=table,
                                            fields=fields,
                                            data=data)
 
-        assert result is True
+        assert returning is None
+
+
+    def test_insert_data_success_with_returning(self, connection):
+        table = 'urls'
+        fields = ['name']
+        data = {'name': 'https://www.example.com'}
+        returning_field = ['name']
+
+        returning = db_operations.insert_data(connection=connection,
+                                           table=table,
+                                           fields=fields,
+                                           data=data,
+                                           returning=returning_field)
+
+        assert data['name'] in returning[0]['name']  # type: ignore # not None
+
 
     def test_insert_error(self, connection):
         false_table = 'url'
         fields = ['name']
         data = {'name': 'https://www.example.com'}
 
-        result = db_operations.insert_data(connection=connection,
+        returning = db_operations.insert_data(connection=connection,
                                            table=false_table,
                                            fields=fields,
                                            data=data)
 
-        assert result is False
+        assert returning is None
 
 
 class TestSelectData:
 
     def test_select_data_success(self, connection):
         table = 'urls'
-        selection_fields = [('urls', 'name'), ('url_checks', 'created_at')]
-        joining = (('url_checks', 'url_id'), 'id')
+        selection_fields: list[tuple[str, str]]
+        selection_fields = [('urls', 'name')]
         condition = (('urls', 'id'), 1)
-        sorting = [(('urls', 'created_at'), 'DESC'),
-                   (('url_checks', 'created_at'), 'DESC')]
+        sorting: list[tuple[tuple[str, str], str]]
+        sorting = [(('urls', 'created_at'), 'DESC'),]
         distinct = ('urls', 'created_at')
 
         result_1 = db_operations.select_data(connection=connection,
                                              table=table,
                                              fields=selection_fields,
                                              distinct=distinct,
-                                             joining=joining,
                                              filtering=condition,
                                              sorting=sorting)
 
@@ -124,14 +132,14 @@ class TestSelectData:
 
         result_2 = db_operations.select_data(connection=connection,
                                              table=table,
-                                             fields=selection_fields,
-                                             joining=joining)
+                                             fields=selection_fields)
 
         assert data['name'] in result_2[0]['name']  # type: ignore # not None
 
     def test_select_data_error(self, connection):
         false_table = 'url'
-        selection_fields = [('urls', 'name'), ('url_checks', 'created_at')]
+        selection_fields: list[tuple[str, str]]
+        selection_fields = [('urls', 'name')]
         result_3 = db_operations.select_data(connection=connection,
                                              table=false_table,
                                              fields=selection_fields)

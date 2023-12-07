@@ -43,10 +43,9 @@ def parse_html_response(response: requests.Response) -> dict[str, Any]:
     if tag_meta_desc is not None:
         content_desc = str(tag_meta_desc.get('content'))  # type: ignore
 
-    matches_fields = ('h1', 'title', 'description')
-    matches_value = (content_h1, content_title, content_desc)
-    matches = {key: value if value is not None else None
-               for key, value in zip(matches_fields, matches_value)}
-    result.update(matches)
+    tags = dict(h1=content_h1,
+                title=content_title,
+                description=content_desc)
+    result.update(tags)
 
     return result

@@ -42,7 +42,7 @@ export DATABASE_URL='postgresql://{username}:{password}@{host}:{port}/{databasen
 make build
 ```
 
-### Running a dev server
+### Starting the development server
 
 ```
 make dev

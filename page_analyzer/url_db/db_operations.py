@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 from typing import Any, TYPE_CHECKING
 
-import dotenv
 import psycopg2
 from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
@@ -16,9 +14,6 @@ if TYPE_CHECKING:
     from psycopg2.sql import Composed
     from psycopg2.sql import SQL
 
-dotenv.load_dotenv()
-
-DATABASE_URL = os.getenv('DATABASE_URL')
 
 OPEN_CONNECTION_MESSAGE = 'A connection to the database has been established'
 CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
@@ -26,12 +21,12 @@ CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
 COMPLETE_OPERATION_MESSAGE = 'The {operation} operation is completed'
 
 
-def open_connection() -> connection | None:
+def open_connection(db_url: str) -> connection | None:
     """Create a db connection, return a connection instance or None on error."""
     conn = None
 
     try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
     except psycopg2.Error as error:
         logging.exception(error)
 
@@ -43,36 +38,50 @@ def insert_data(connection: connection,
                 table: str,
                 fields: list[str],
                 data: dict[str, Any],
-                ) -> bool:
-    """Insert data into the db and return the status of the operation."""
+                returning: list[str] | None = None,
+                ) -> list[RealDictRow] | None:
+    """Insert data into the db, return inserted data or None if error occurs."""
     fields = [*fields, 'created_at']
     created_at = datetime.datetime.now()
-    data.update(created_at=created_at)
+    data_copy = data.copy()
+    data_copy.update(created_at=created_at)
 
     query = sql.SQL("INSERT INTO {table} ({fields}) "
-                    "VALUES ({data});").format(
+                    "VALUES ({data})").format(
                         table=sql.Identifier(table),
                         fields=sql.SQL(',').join(map(sql.Identifier, fields)),
                         data=sql.SQL(', ').join(map(sql.Placeholder, fields)))
+    query_end = sql.SQL(';')
+
+    if returning is not None:
+        returning_string = sql.SQL(' RETURNING {joining_fields}').format(
+            joining_fields=sql.SQL(',').join(
+                sql.Identifier(field) for field in returning))
+        query += returning_string
+
+    result_query = query + query_end
+    inserted_data: list[RealDictRow] | None = None
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute(query, data)
+            cursor.execute(result_query, data_copy)
+            if returning is not None:
+                inserted_data = cursor.fetchall()  # type: ignore
     except psycopg2.Error as error:
         connection.rollback()
         connection.close()
         logging.exception(error)
-        return False
+        return None
+# None не будет указывать на ошибку, а будет указывать на отсутстиве возврата
 
     logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='insert'))
-    return True
+    return inserted_data
 
 
 def select_data(connection: connection,
                 table: str,
                 fields: list[tuple[str, str]],
                 distinct: tuple[str, str] | None = None,
-                joining: tuple[tuple[str, str], str] | None = None,
                 filtering: tuple[tuple[str, str], str | int] | None = None,
                 sorting: list[tuple[tuple[str, str], str]] | None = None,
                 ) -> list[RealDictRow] | None:
@@ -81,10 +90,6 @@ def select_data(connection: connection,
                                        fields=fields,
                                        distinct=distinct)
     query_end = sql.SQL(';')
-
-    if joining is not None:
-        joining_string = _generate_joining_string(table=table, joining=joining)
-        query += joining_string
 
     if filtering is not None:
         filtering_string = _generate_filtering_string(filtering=filtering)
@@ -141,26 +146,6 @@ def _generate_selection_string(table: str,
         fields=selection_fields)
 
     return query
-
-
-def _generate_joining_string(table: str,
-                             joining: tuple[tuple[str, str], str],
-                             ) -> Composed:
-    """Generate a SQL LEFT JOIN string."""
-    string_pattern = 'LEFT JOIN {secondary_table} ON {main_table}.{main_field}'\
-                     ' = {secondary_table}.{secondary_field}\n'
-    main_table = sql.Identifier(table)
-    main_field = sql.Identifier(joining[1])
-    secondary_table = sql.Identifier(joining[0][0])
-    secondary_field = sql.Identifier(joining[0][1])
-
-    joining_string = sql.SQL(string_pattern).format(
-        main_table=main_table,
-        main_field=main_field,
-        secondary_table=secondary_table,
-        secondary_field=secondary_field)
-
-    return joining_string
 
 
 def _generate_filtering_string(filtering: tuple[tuple[str, str], Any],
