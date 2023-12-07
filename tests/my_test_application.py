@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from flask import get_flashed_messages
 import psycopg2.extras
 import pytest
+import requests
 
 import page_analyzer
 
@@ -61,12 +62,13 @@ def test_index_success(client):
 
 class TestPostUrl:
     url = '/urls'
+    form_data = {'url': 'http://example.com'}
 
     def test_post_urls_success(self, client, mock_url_db):
-        mock_url_db.check_url.return_value = 0
+        mock_url_db.check_url.return_value = None
         mock_url_db.create_url.return_value = 1
         with client:
-            response = client.post(self.url, data={'url': 'http://example.com'})
+            response = client.post(self.url, data=self.form_data)
             message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.open_connection.called
@@ -106,16 +108,14 @@ class TestPostUrl:
         assert user_value in response.text
 
     def test_post_urls_connection_error(self, client, mock_url_db):
-        mock_url_db.open_connection.return_value = None
-        response = client.post(self.url,
-                               data={'url': 'http://example.com'})
+        mock_url_db.open_connection.side_effect = psycopg2.Error
+        response = client.post(self.url, data=self.form_data)
 
         assert response.status_code == 500
 
     def test_post_urls_check_url_error(self, client, mock_url_db):
-        mock_url_db.check_url.return_value = None
-        response = client.post(self.url,
-                               data={'url': 'http://example.com'})
+        mock_url_db.check_url.side_effect = psycopg2.Error
+        response = client.post(self.url, data=self.form_data)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 500
@@ -123,8 +123,7 @@ class TestPostUrl:
     def test_post_urls_url_already_exist(self, client, mock_url_db):
         mock_url_db.check_url.return_value = 1
         with client:
-            response = client.post(self.url,
-                                   data={'url': 'http://example.com'})
+            response = client.post(self.url, data=self.form_data)
             message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.close_connection.called
@@ -133,10 +132,9 @@ class TestPostUrl:
         assert message == ('info', 'Страница уже существует')
 
     def test_post_urls_create_url_error(self, client, mock_url_db):
-        mock_url_db.check_url.return_value = 0
-        mock_url_db.create_url.return_value = None
-        response = client.post(self.url,
-                               data={'url': 'http://example.com'})
+        mock_url_db.check_url.return_value = None
+        mock_url_db.create_url.side_effect = psycopg2.Error
+        response = client.post(self.url, data=self.form_data)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 500
@@ -174,13 +172,13 @@ class TestGetURLs:
         assert empty_list_urls in response.text
 
     def test_get_urls_connection_error(self, client, mock_url_db):
-        mock_url_db.open_connection.return_value = None
+        mock_url_db.open_connection.side_effect = psycopg2.Error
         response = client.get(self.url)
 
         assert response.status_code == 500
 
     def test_get_urls_get_list_urls_error(self, client, mock_url_db):
-        mock_url_db.get_urls.return_value = None
+        mock_url_db.get_urls.side_effect = psycopg2.Error
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
@@ -189,12 +187,12 @@ class TestGetURLs:
 
 class TestGetURL:
     url = '/urls/1'
+    url_data = psycopg2.extras.RealDictRow(
+        id=1,
+        name='http://example.com',
+        created_at=datetime(2000, 1, 1, 1, 1, 1))
 
     def test_get_url_success(self, client, mock_url_db):
-        url_data = psycopg2.extras.RealDictRow(
-            id=1,
-            name='http://example.com',
-            created_at=datetime(2000, 1, 1, 1, 1, 1))
         checks_list = [
             psycopg2.extras.RealDictRow(
                 id=2,
@@ -210,7 +208,7 @@ class TestGetURL:
                 title='title',
                 description='description',
                 created_at=datetime(2000, 1, 1, 1, 1, 1))]
-        mock_url_db.get_url.return_value = url_data
+        mock_url_db.get_url.return_value = self.url_data
         mock_url_db.get_url_checks.return_value = checks_list
         response = client.get(self.url)
 
@@ -221,13 +219,13 @@ class TestGetURL:
         assert url_page in response.text
 
     def test_get_url_connection_error(self, client, mock_url_db):
-        mock_url_db.open_connection.return_value = None
+        mock_url_db.open_connection.side_effect = psycopg2.Error
         response = client.get(self.url)
 
         assert response.status_code == 500
 
     def test_get_url_get_url_error(self, client, mock_url_db):
-        mock_url_db.get_url.return_value = None
+        mock_url_db.get_url.side_effect = psycopg2.Error
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
@@ -242,12 +240,8 @@ class TestGetURL:
         assert response.status_code == 404
 
     def test_get_url_get_url_checks_error(self, client, mock_url_db):
-        url_data = psycopg2.extras.RealDictRow(
-            id=1,
-            name='http://example.com',
-            created_at=datetime(2000, 1, 1, 1, 1, 1))
-        mock_url_db.get_url.return_value = url_data
-        mock_url_db.get_url_checks.return_value = None
+        mock_url_db.get_url.return_value = self.url_data
+        mock_url_db.get_url_checks.side_effect = psycopg2.Error
         response = client.get(self.url)
 
         assert mock_url_db.close_connection.called
@@ -275,13 +269,13 @@ class TestPostChecks:
         assert message == ('success', 'Страница успешно проверена')
 
     def test_post_checks_connection_error(self, client, mock_url_db):
-        mock_url_db.open_connection.return_value = None
+        mock_url_db.open_connection.side_effect = psycopg2.Error
         response = client.post(self.url)
 
         assert response.status_code == 500
 
     def test_post_checks_get_url_error(self, client, mock_url_db):
-        mock_url_db.get_url.return_value = None
+        mock_url_db.get_url.side_effect = psycopg2.Error
         response = client.post(self.url)
 
         assert mock_url_db.close_connection.called
@@ -298,7 +292,7 @@ class TestPostChecks:
                                                  client,
                                                  mock_url_db,
                                                  mock_webutils):
-        mock_webutils.get_site_response.return_value = None
+        mock_webutils.get_site_response.side_effect = requests.RequestException
         with client:
             response = client.post(self.url)
             message, *_ = get_flashed_messages(with_categories=True)
@@ -312,7 +306,7 @@ class TestPostChecks:
                                             client,
                                             mock_url_db,
                                             mock_webutils):
-        mock_url_db.create_check.return_value = None
+        mock_url_db.create_check.side_effect = psycopg2.Error
         response = client.post(self.url)
 
         assert mock_url_db.close_connection.called
@@ -328,7 +322,7 @@ def test_page_not_found_succes(client):
 
 
 def test_internal_server_error_success(client, mock_url_db):
-    mock_url_db.open_connection.return_value = None
+    mock_url_db.open_connection.side_effect = psycopg2.Error
     response = client.post('/urls',
                            data={'url': 'http://example.com'})
 

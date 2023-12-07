@@ -1,6 +1,7 @@
 import os
 
 import dotenv
+import psycopg2
 from psycopg2 import sql
 import pytest
 
@@ -18,7 +19,7 @@ def connection():
 
     yield connect
 
-    connect.close()  # type: ignore # here the connection is not None
+    connect.close()
 
 
 def test_generate_selection_string_seccess(connection):
@@ -60,6 +61,17 @@ def test_generate_sorting_string_seccess(connection):
     assert result.as_string(connection) == expected_string
 
 
+def test_open_connection_error():
+    with pytest.raises(psycopg2.Error):
+        db_operations.open_connection('incorrect DB URL')
+
+
+def test_close_connection_success(connection):
+    db_operations.close_connection(connection)
+
+    assert connection.closed
+
+
 class TestInsertData:
 
     def test_insert_data_success(self, connection):
@@ -68,12 +80,11 @@ class TestInsertData:
         data = {'name': 'https://www.example.com'}
 
         returning = db_operations.insert_data(connection=connection,
-                                           table=table,
-                                           fields=fields,
-                                           data=data)
+                                              table=table,
+                                              fields=fields,
+                                              data=data)
 
         assert returning is None
-
 
     def test_insert_data_success_with_returning(self, connection):
         table = 'urls'
@@ -82,25 +93,23 @@ class TestInsertData:
         returning_field = ['name']
 
         returning = db_operations.insert_data(connection=connection,
-                                           table=table,
-                                           fields=fields,
-                                           data=data,
-                                           returning=returning_field)
+                                              table=table,
+                                              fields=fields,
+                                              data=data,
+                                              returning=returning_field)
 
         assert data['name'] in returning[0]['name']  # type: ignore # not None
-
 
     def test_insert_error(self, connection):
         false_table = 'url'
         fields = ['name']
         data = {'name': 'https://www.example.com'}
 
-        returning = db_operations.insert_data(connection=connection,
-                                           table=false_table,
-                                           fields=fields,
-                                           data=data)
-
-        assert returning is None
+        with pytest.raises(psycopg2.Error):
+            db_operations.insert_data(connection=connection,
+                                      table=false_table,
+                                      fields=fields,
+                                      data=data)
 
 
 class TestSelectData:
@@ -140,8 +149,8 @@ class TestSelectData:
         false_table = 'url'
         selection_fields: list[tuple[str, str]]
         selection_fields = [('urls', 'name')]
-        result_3 = db_operations.select_data(connection=connection,
-                                             table=false_table,
-                                             fields=selection_fields)
 
-        assert result_3 is None
+        with pytest.raises(psycopg2.Error):
+            db_operations.select_data(connection=connection,
+                                      table=false_table,
+                                      fields=selection_fields)

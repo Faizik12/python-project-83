@@ -2,45 +2,45 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any, TYPE_CHECKING
+import typing as t
 
 import psycopg2
 from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from psycopg2.extensions import connection
     from psycopg2.extras import RealDictRow
     from psycopg2.sql import Composed
     from psycopg2.sql import SQL
 
 
-OPEN_CONNECTION_MESSAGE = 'A connection to the database has been established'
+COMPLETE_OPERATION_MESSAGE = 'The {operation} is completed'
+ERROR_OPERATION_MESSAGE = 'Error when trying to {operation}'
 CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
                            'the connection to the database is close'
-COMPLETE_OPERATION_MESSAGE = 'The {operation} operation is completed'
 
 
-def open_connection(db_url: str) -> connection | None:
-    """Create a db connection, return a connection instance or None on error."""
-    conn = None
-
+def open_connection(db_url: str) -> connection:
+    """Create a DB connection, return a connection instance or None on error."""
     try:
         conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
-    except psycopg2.Error as error:
-        logging.exception(error)
+    except psycopg2.Error:
+        logging.exception(ERROR_OPERATION_MESSAGE.format(
+            operation='DB connection'))
+        raise
 
-    logging.info(OPEN_CONNECTION_MESSAGE)
+    logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='DB connection'))
     return conn
 
 
 def insert_data(connection: connection,
                 table: str,
                 fields: list[str],
-                data: dict[str, Any],
+                data: dict[str, t.Any],
                 returning: list[str] | None = None,
                 ) -> list[RealDictRow] | None:
-    """Insert data into the db, return inserted data or None if error occurs."""
+    """Insert data into the DB, return inserted data or None if error occurs."""
     fields = [*fields, 'created_at']
     created_at = datetime.datetime.now()
     data_copy = data.copy()
@@ -67,14 +67,14 @@ def insert_data(connection: connection,
             cursor.execute(result_query, data_copy)
             if returning is not None:
                 inserted_data = cursor.fetchall()  # type: ignore
-    except psycopg2.Error as error:
+    except psycopg2.Error:
         connection.rollback()
         connection.close()
-        logging.exception(error)
-        return None
-# None не будет указывать на ошибку, а будет указывать на отсутстиве возврата
+        logging.exception(ERROR_OPERATION_MESSAGE.format(
+            operation='insert data'))
+        raise
 
-    logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='insert'))
+    logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='insert data'))
     return inserted_data
 
 
@@ -84,8 +84,8 @@ def select_data(connection: connection,
                 distinct: tuple[str, str] | None = None,
                 filtering: tuple[tuple[str, str], str | int] | None = None,
                 sorting: list[tuple[tuple[str, str], str]] | None = None,
-                ) -> list[RealDictRow] | None:
-    """Select data from the db, return records list or None if error occurs."""
+                ) -> list[RealDictRow]:
+    """Select data from the DB, return records list or None if error occurs."""
     query = _generate_selection_string(table=table,
                                        fields=fields,
                                        distinct=distinct)
@@ -105,13 +105,14 @@ def select_data(connection: connection,
         with connection.cursor() as cursor:
             cursor.execute(result_query)
             data: list[RealDictRow] = cursor.fetchall()  # type: ignore
-    except psycopg2.Error as error:
+    except psycopg2.Error:
         connection.rollback()
         connection.close()
-        logging.exception(error)
-        return None
+        logging.exception(ERROR_OPERATION_MESSAGE.format(
+            operation='select data'))
+        raise
 
-    logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='select'))
+    logging.info(COMPLETE_OPERATION_MESSAGE.format(operation='select data'))
     return data
 
 
@@ -148,7 +149,7 @@ def _generate_selection_string(table: str,
     return query
 
 
-def _generate_filtering_string(filtering: tuple[tuple[str, str], Any],
+def _generate_filtering_string(filtering: tuple[tuple[str, str], t.Any],
                                ) -> Composed:
     """Generate SQL filtering string."""
     string_pattern = 'WHERE {table}.{field} = {id}\n'

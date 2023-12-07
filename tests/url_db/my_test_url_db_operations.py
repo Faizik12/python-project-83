@@ -17,15 +17,6 @@ def mock_db_operations(monkeypatch):
 
 
 @pytest.fixture()
-def mock_merge_urls_checks(monkeypatch):
-    mock = MagicMock()
-    monkeypatch.setattr(
-        'page_analyzer.url_db.url_db_operations._merge_urls_checks',
-        mock)
-    return mock
-
-
-@pytest.fixture()
 def mock_connection():
     return MagicMock()
 
@@ -61,7 +52,8 @@ class TestMergeURLsChecks:
                 created_at=datetime(2001, 1, 1, 1, 1, 1),
                 status_code=200)]
 
-        result = url_db_operations._merge_urls_checks(self.urls, self.url_checks)
+        result = url_db_operations._merge_urls_checks(self.urls,
+                                                      self.url_checks)
 
         assert result == correct_result
 
@@ -70,7 +62,9 @@ class TestMergeURLsChecks:
 
         assert result == []
 
-    def test_get_urls_second_select_empty(self, mock_db_operations, mock_connection):
+    def test_get_urls_second_select_empty(self,
+                                          mock_db_operations,
+                                          mock_connection):
         result = url_db_operations._merge_urls_checks(self.urls, [])
 
         assert result == self.urls
@@ -102,11 +96,10 @@ class TestCreateURL:
         assert result == 1
 
     def test_create_url_insert_error(self, mock_db_operations, mock_connection):
-        mock_db_operations.insert_data.return_value = None
+        mock_db_operations.insert_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.create_url(mock_connection, self.url)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.create_url(mock_connection, self.url)
 
 
 class TestCreateURLCheck:
@@ -118,16 +111,16 @@ class TestCreateURLCheck:
     }
 
     def test_create_check_success(self, mock_db_operations, mock_connection):
-        mock_db_operations.insert_data.return_value = True
+        mock_db_operations.insert_data.return_value = None
 
         table = 'url_checks'
         insertion_fields = ['url_id', 'status_code', 'h1',
                             'title', 'description']
         data_copy = self.check_data.copy()
 
-        result = url_db_operations.create_check(connection=mock_connection,
-                                                url_id=1,
-                                                data=data_copy)
+        url_db_operations.create_check(connection=mock_connection,
+                                       url_id=1,
+                                       data=data_copy)
 
         insert_call_args = mock_db_operations.insert_data.call_args
         insert_kwargs = insert_call_args.kwargs.values()
@@ -139,18 +132,15 @@ class TestCreateURLCheck:
         assert insertion_fields in insert_kwargs
         assert data_copy in insert_kwargs
 
-        assert result is True
-
     def test_create_check_insert_error(self,
                                        mock_db_operations,
                                        mock_connection):
-        mock_db_operations.insert_data.return_value = None
+        mock_db_operations.insert_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.create_check(connection=mock_connection,
-                                                url_id=1,
-                                                data=self.check_data)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.create_check(connection=mock_connection,
+                                           url_id=1,
+                                           data=self.check_data)
 
 
 class TestCheckURL:
@@ -181,14 +171,13 @@ class TestCheckURL:
 
         result = url_db_operations.check_url(mock_connection, self.url)
 
-        assert result == 0
+        assert result is None
 
     def test_check_url_select_error(self, mock_db_operations, mock_connection):
-        mock_db_operations.select_data.return_value = None
+        mock_db_operations.select_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.check_url(mock_connection, self.url)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.check_url(mock_connection, self.url)
 
 
 class TestGetURLs:
@@ -209,7 +198,9 @@ class TestGetURLs:
             created_at=datetime(2001, 1, 1, 1, 1, 1),
             status_code=200)]
 
-    def test_get_urls_success(self, mock_db_operations, mock_connection, mock_merge_urls_checks):
+    def test_get_urls_success(self,
+                              mock_db_operations,
+                              mock_connection):
         mock_db_operations.select_data.side_effect = (self.selected_urls,
                                                       self.selected_url_checks)
 
@@ -224,6 +215,18 @@ class TestGetURLs:
         checks_distinct = ('url_checks', 'url_id')
         checks_sorting = [(('url_checks', 'url_id'), 'ASC'),
                           (('url_checks', 'created_at'), 'DESC')]
+
+        correct_result = [
+            psycopg2.extras.RealDictRow(
+                id=2,
+                name='http://example2.com',
+                created_at=datetime(2002, 2, 2, 2, 2, 2),
+                status_code=200),
+            psycopg2.extras.RealDictRow(
+                id=1,
+                name='http://example1.com',
+                created_at=datetime(2001, 1, 1, 1, 1, 1),
+                status_code=200)]
 
         result = url_db_operations.get_urls(mock_connection)
 
@@ -241,27 +244,24 @@ class TestGetURLs:
         assert checks_distinct in second_call_args
         assert checks_sorting in second_call_args
 
-        merge_call_args = mock_merge_urls_checks.call_args
-        merge_args = merge_call_args.args
-        assert mock_merge_urls_checks.called
-        assert self.selected_urls in merge_args
-        assert self.selected_url_checks in merge_args
+        assert result == correct_result
 
-    def test_get_urls_first_select_error(self, mock_db_operations, mock_connection):
-        mock_db_operations.select_data.return_value = None
+    def test_get_urls_first_select_error(self,
+                                         mock_db_operations,
+                                         mock_connection):
+        mock_db_operations.select_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.get_urls(mock_connection)
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.get_urls(mock_connection)
 
-        assert result is None
-
-    def test_get_urls_second_select_error(self, mock_db_operations, mock_connection):
-        selected_url_checks = None
+    def test_get_urls_second_select_error(self,
+                                          mock_db_operations,
+                                          mock_connection):
         mock_db_operations.select_data.side_effect = (self.selected_urls,
-                                                      selected_url_checks)
+                                                      psycopg2.Error)
 
-        result = url_db_operations.get_urls(mock_connection)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.get_urls(mock_connection)
 
 
 class TestGetURLChecks:
@@ -314,20 +314,17 @@ class TestGetURLChecks:
                                          mock_connection):
         mock_db_operations.select_data.return_value = []
 
-        result = url_db_operations.get_url_checks(mock_connection,
-                                                         self.url_id)
+        result = url_db_operations.get_url_checks(mock_connection, self.url_id)
 
         assert result == []
 
     def test_get_url_checks_select_error(self,
                                          mock_db_operations,
                                          mock_connection):
-        mock_db_operations.select_data.return_value = None
+        mock_db_operations.select_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.get_url_checks(mock_connection,
-                                                         self.url_id)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.get_url_checks(mock_connection, self.url_id)
 
 
 class TestGetURL:
@@ -358,8 +355,8 @@ class TestGetURL:
         assert result == selection_data[0]
 
     def test_get_url_empty_select(self,
-                                       mock_db_operations,
-                                       mock_connection):
+                                  mock_db_operations,
+                                  mock_connection):
         mock_db_operations.select_data.return_value = []
 
         result = url_db_operations.get_url(mock_connection, self.url_id)
@@ -367,10 +364,9 @@ class TestGetURL:
         assert result == psycopg2.extras.RealDictRow()
 
     def test_get_url_select_error(self,
-                                       mock_db_operations,
-                                       mock_connection):
-        mock_db_operations.select_data.return_value = None
+                                  mock_db_operations,
+                                  mock_connection):
+        mock_db_operations.select_data.side_effect = psycopg2.Error
 
-        result = url_db_operations.get_url(mock_connection, self.url_id)
-
-        assert result is None
+        with pytest.raises(psycopg2.Error):
+            url_db_operations.get_url(mock_connection, self.url_id)

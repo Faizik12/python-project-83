@@ -53,9 +53,8 @@ class TestGetSiteResponse:
         assert isinstance(result, FakeResponse)
 
     def test_get_site_response_request_error(self, bad_client):
-        result = webutils.get_site_response(self.url)
-
-        assert result is None
+        with pytest.raises(requests.RequestException):
+            webutils.get_site_response(self.url)
 
 
 def test_parse_html_response_success(fakeresponse):
