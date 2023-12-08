@@ -22,7 +22,7 @@ CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
 
 
 def open_connection(db_url: str) -> connection:
-    """Create a DB connection, return a connection instance or None on error."""
+    """Create a DB connection, return a connection instance."""
     try:
         conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
     except psycopg2.Error:
@@ -40,7 +40,7 @@ def insert_data(connection: connection,
                 data: dict[str, t.Any],
                 returning: list[str] | None = None,
                 ) -> list[RealDictRow] | None:
-    """Insert data into the DB, return inserted data or None if error occurs."""
+    """Insert data into the DB, return None or inserted data."""
     fields = [*fields, 'created_at']
     created_at = datetime.datetime.now()
     data_copy = data.copy()
@@ -85,7 +85,7 @@ def select_data(connection: connection,
                 filtering: tuple[tuple[str, str], str | int] | None = None,
                 sorting: list[tuple[tuple[str, str], str]] | None = None,
                 ) -> list[RealDictRow]:
-    """Select data from the DB, return records list or None if error occurs."""
+    """Select data from the DB, return records list."""
     query = _generate_selection_string(table=table,
                                        fields=fields,
                                        distinct=distinct)
@@ -133,8 +133,8 @@ def _generate_selection_string(table: str,
         sql.Identifier(table) + sql.SQL('.') + sql.Identifier(field)
         for table, field in fields)
 
+    distinct_string: Composed | SQL
     if distinct:
-        distinct_string: Composed | SQL
         distinct_string = sql.SQL(' DISTINCT ON ({table}.{field})').format(
             table=sql.Identifier(distinct[0]),
             field=sql.Identifier(distinct[1]))
@@ -143,8 +143,8 @@ def _generate_selection_string(table: str,
 
     query = sql.SQL(string_pattern).format(
         table=sql.Identifier(table),
-        distinct=distinct_string,
-        fields=selection_fields)
+        fields=selection_fields,
+        distinct=distinct_string)
 
     return query
 

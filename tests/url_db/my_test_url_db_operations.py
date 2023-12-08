@@ -62,9 +62,7 @@ class TestMergeURLsChecks:
 
         assert result == []
 
-    def test_get_urls_second_select_empty(self,
-                                          mock_db_operations,
-                                          mock_connection):
+    def test_get_urls_second_select_empty(self):
         result = url_db_operations._merge_urls_checks(self.urls, [])
 
         assert result == self.urls
@@ -109,6 +107,7 @@ class TestCreateURLCheck:
         'title': 'Example title',
         'description': 'Example description',
     }
+    url_id = 1
 
     def test_create_check_success(self, mock_db_operations, mock_connection):
         mock_db_operations.insert_data.return_value = None
@@ -119,13 +118,13 @@ class TestCreateURLCheck:
         data_copy = self.check_data.copy()
 
         url_db_operations.create_check(connection=mock_connection,
-                                       url_id=1,
+                                       url_id=self.url_id,
                                        data=data_copy)
 
         insert_call_args = mock_db_operations.insert_data.call_args
         insert_kwargs = insert_call_args.kwargs.values()
 
-        data_copy.update(url_id=1)
+        data_copy.update(url_id=self.url_id)
 
         assert mock_db_operations.insert_data.called
         assert table in insert_kwargs
@@ -139,7 +138,7 @@ class TestCreateURLCheck:
 
         with pytest.raises(psycopg2.Error):
             url_db_operations.create_check(connection=mock_connection,
-                                           url_id=1,
+                                           url_id=self.url_id,
                                            data=self.check_data)
 
 
@@ -361,7 +360,7 @@ class TestGetURL:
 
         result = url_db_operations.get_url(mock_connection, self.url_id)
 
-        assert result == psycopg2.extras.RealDictRow()
+        assert result is None
 
     def test_get_url_select_error(self,
                                   mock_db_operations,

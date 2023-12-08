@@ -20,7 +20,7 @@ LOWER_LEVEL_ERROR = 'Error at the lower level'
 
 
 def create_url(connection: connection, url: str) -> int:
-    """Create a record URL in db, return record id or None if error occurs."""
+    """Create a record URL in db, return record id."""
     insertion_fields = ['name']
     insertion_data = {'name': url}
     returning_fields = ['id']
@@ -35,7 +35,7 @@ def create_url(connection: connection, url: str) -> int:
         logging.error(LOWER_LEVEL_ERROR)
         raise
 
-    url_id: int = returning[0]['id']  # type: ignore # not None
+    url_id: int = returning[0]['id']  # type: ignore
     logging.info(CREATION_MESSAGE.format(entity='URL'))
     return url_id
 
@@ -44,7 +44,7 @@ def create_check(connection: connection,
                  url_id: int,
                  data: dict[str, t.Any],
                  ) -> None:
-    """Create a record URL check in db, return True or None if error occurs."""
+    """Create a record URL check in db, return None."""
     data = data.copy()
     data.update(url_id=url_id)
     fields = ['url_id', 'status_code', 'h1',
@@ -63,7 +63,7 @@ def create_check(connection: connection,
 
 
 def check_url(connection: connection, url: str) -> int | None:
-    """Check for a URLs, return id, 0 if no record or None if error occurs."""
+    """Check for a URLs, return id or None if no record."""
     fields: list[tuple[str, str]] = [('urls', 'id')]
     condition = (('urls', 'name'), url)
 
@@ -86,7 +86,7 @@ def check_url(connection: connection, url: str) -> int | None:
 
 
 def get_urls(connection: connection) -> list[RealDictRow]:
-    """Return a list of URL records or None if error occurs."""
+    """Return a list of URL records."""
     urls_fields = [('urls', 'id'), ('urls', 'name')]
     urls_sorting: list[tuple[tuple[str, str], str]]
     urls_sorting = [(('urls', 'created_at'), 'DESC')]
@@ -103,22 +103,16 @@ def get_urls(connection: connection) -> list[RealDictRow]:
                                          table=URLS_TABLE,
                                          fields=urls_fields,
                                          sorting=urls_sorting)
-    except psycopg2.Error:
-        logging.error('Error on first selection')
-        raise
-
-    try:
         url_checks = db_operations.select_data(connection=connection,
                                                table=URL_CHECKS_TABLE,
                                                fields=checks_fields,
                                                distinct=checks_distinct,
                                                sorting=checks_sorting)
     except psycopg2.Error:
-        logging.error('Error on second selection')
+        logging.error(LOWER_LEVEL_ERROR)
         raise
 
     merged_data = _merge_urls_checks(urls, url_checks)
-
     logging.info(RECEIPT_MESSAGE.format(entity='URLs'))
     return merged_data
 
@@ -126,7 +120,7 @@ def get_urls(connection: connection) -> list[RealDictRow]:
 def get_url_checks(connection: connection,
                    url_id: int,
                    ) -> list[RealDictRow]:
-    """Returns a list of URL checks, or None if an error occurred."""
+    """Returns a list of URL checks."""
     fields_for_checks = [('url_checks', 'id'),
                          ('url_checks', 'status_code'),
                          ('url_checks', 'h1'),
@@ -151,8 +145,8 @@ def get_url_checks(connection: connection,
     return url_checks
 
 
-def get_url(connection: connection, url_id: int) -> RealDictRow:
-    """Returns the URL record or None if an error occurred."""
+def get_url(connection: connection, url_id: int) -> RealDictRow | None:
+    """Returns the URL record or None if no record."""
     fields_for_url = [('urls', 'id'),
                       ('urls', 'name'),
                       ('urls', 'created_at')]
@@ -169,7 +163,7 @@ def get_url(connection: connection, url_id: int) -> RealDictRow:
 
     if not urls:
         logging.info(RECEIPT_MESSAGE.format(entity='URL'))
-        return RealDictRow()
+        return None
 
     return urls[0]
 
@@ -177,6 +171,7 @@ def get_url(connection: connection, url_id: int) -> RealDictRow:
 def _merge_urls_checks(urls: list[RealDictRow],
                        url_checks: list[RealDictRow],
                        ) -> list[RealDictRow]:
+    '''Return the merged list of URLs and their checks.'''
     result = []
     for url in urls:
         url_id = url['id']

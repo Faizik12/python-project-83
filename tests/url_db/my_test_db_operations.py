@@ -14,7 +14,6 @@ DATABASE_URL = os.getenv('DATABASE_URL', '')
 
 @pytest.fixture()
 def connection():
-    """Creating a connection that will not be committed."""
     connect = db_operations.open_connection(DATABASE_URL)
 
     yield connect
@@ -98,7 +97,7 @@ class TestInsertData:
                                               data=data,
                                               returning=returning_field)
 
-        assert data['name'] in returning[0]['name']  # type: ignore # not None
+        assert data['name'] in returning[0]['name']  # type: ignore
 
     def test_insert_error(self, connection):
         false_table = 'url'
@@ -143,7 +142,7 @@ class TestSelectData:
                                              table=table,
                                              fields=selection_fields)
 
-        assert data['name'] in result_2[0]['name']  # type: ignore # not None
+        assert data['name'] in result_2[0]['name']  # type: ignore
 
     def test_select_data_error(self, connection):
         false_table = 'url'

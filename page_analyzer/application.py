@@ -106,7 +106,7 @@ def get_url(id: int) -> str:
     try:
         connection = url_db.open_connection(DATABASE_URL)
         url_data = url_db.get_url(connection, id)
-        if not url_data:
+        if url_data is None:
             abort(404)
         checks_list = url_db.get_url_checks(connection, id)
     except psycopg2.Error:
@@ -128,10 +128,10 @@ def post_checks(id: int) -> Response:
     connection = None
     try:
         connection = url_db.open_connection(DATABASE_URL)
-        url = url_db.get_url(connection, id)
-        if not url:
+        url_data = url_db.get_url(connection, id)
+        if url_data is None:
             abort(404)
-        response = webutils.get_site_response(url['name'])
+        response = webutils.get_site_response(url_data['name'])
         page_data = webutils.parse_html_response(response)
         url_db.create_check(connection, id, page_data)
     except psycopg2.Error:

@@ -4,8 +4,6 @@ import typing as t
 import bs4
 import requests
 
-SITE_CONNECTION_MESSAGE = 'The response from the site was received'
-
 
 def get_site_response(url: str) -> requests.Response:
     """Execute a request to the site, return a response."""
@@ -16,7 +14,7 @@ def get_site_response(url: str) -> requests.Response:
         logging.exception('Error when requesting the site')
         raise
 
-    logging.info(SITE_CONNECTION_MESSAGE)
+    logging.info('The response from the site was received')
     return response
 
 

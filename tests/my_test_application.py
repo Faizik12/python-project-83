@@ -232,7 +232,7 @@ class TestGetURL:
         assert response.status_code == 500
 
     def test_get_url_non_exist_url(self, client, mock_url_db):
-        url_data = psycopg2.extras.RealDictRow()
+        url_data = None
         mock_url_db.get_url.return_value = url_data
         response = client.get(self.url)
 
@@ -282,7 +282,7 @@ class TestPostChecks:
         assert response.status_code == 500
 
     def test_post_checks_non_exist_url(self, client, mock_url_db):
-        mock_url_db.get_url.return_value = psycopg2.extras.RealDictRow()
+        mock_url_db.get_url.return_value = None
         response = client.post(self.url)
 
         assert mock_url_db.close_connection.called
