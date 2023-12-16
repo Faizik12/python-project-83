@@ -103,7 +103,7 @@ def get_url(id: int) -> str:
         url = url_db.get_url(connection, id)
         if url is None:
             abort(404)
-        checks_list = url_db.get_url_checks(connection, id)
+        checks = url_db.get_url_checks(connection, id)
     except psycopg2.Error:
         abort(500)
     finally:
@@ -113,7 +113,7 @@ def get_url(id: int) -> str:
     return render_template('url.html',
                            messages=messages,
                            url=url,
-                           checks=checks_list)
+                           checks=checks)
 
 
 @app.post('/urls/<int:id>/checks')
