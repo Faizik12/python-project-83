@@ -112,7 +112,7 @@ class TestPostUrl:
     def test_post_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
-            response = client.post(self.url, data=self.form_data)
+            client.post(self.url, data=self.form_data)
 
     def test_post_urls_check_url_error(self, client, mock_url_db):
         mock_url_db.check_url.side_effect = psycopg2.Error
@@ -175,7 +175,7 @@ class TestGetURLs:
     def test_get_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
-            response = client.get(self.url)
+            client.get(self.url)
 
     def test_get_urls_get_list_urls_error(self, client, mock_url_db):
         mock_url_db.get_urls.side_effect = psycopg2.Error
@@ -221,7 +221,7 @@ class TestGetURL:
     def test_get_url_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
-            response = client.get(self.url)
+            client.get(self.url)
 
     def test_get_url_get_url_error(self, client, mock_url_db):
         mock_url_db.get_url.side_effect = psycopg2.Error
@@ -270,7 +270,7 @@ class TestPostChecks:
     def test_post_checks_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
-            response = client.post(self.url)
+            client.post(self.url)
 
     def test_post_checks_get_url_error(self, client, mock_url_db):
         mock_url_db.get_url.side_effect = psycopg2.Error
