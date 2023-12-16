@@ -64,13 +64,13 @@ def test_index_success(client):
 
 class TestPostUrl:
     url = '/urls'
-    form_data = {'url': 'http://example.com'}
+    form = {'url': 'http://example.com'}
 
     def test_post_urls_success(self, client, mock_url_db):
         mock_url_db.check_url.return_value = None
         mock_url_db.create_url.return_value = 1
         with client:
-            response = client.post(self.url, data=self.form_data)
+            response = client.post(self.url, data=self.form)
             message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.open_connection.called
@@ -112,11 +112,11 @@ class TestPostUrl:
     def test_post_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
-            client.post(self.url, data=self.form_data)
+            client.post(self.url, data=self.form)
 
     def test_post_urls_check_url_error(self, client, mock_url_db):
         mock_url_db.check_url.side_effect = psycopg2.Error
-        response = client.post(self.url, data=self.form_data)
+        response = client.post(self.url, data=self.form)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 500
@@ -124,7 +124,7 @@ class TestPostUrl:
     def test_post_urls_url_already_exist(self, client, mock_url_db):
         mock_url_db.check_url.return_value = 1
         with client:
-            response = client.post(self.url, data=self.form_data)
+            response = client.post(self.url, data=self.form)
             message, *_ = get_flashed_messages(with_categories=True)
 
         assert mock_url_db.close_connection.called
@@ -135,7 +135,7 @@ class TestPostUrl:
     def test_post_urls_create_url_error(self, client, mock_url_db):
         mock_url_db.check_url.return_value = None
         mock_url_db.create_url.side_effect = psycopg2.Error
-        response = client.post(self.url, data=self.form_data)
+        response = client.post(self.url, data=self.form)
 
         assert mock_url_db.close_connection.called
         assert response.status_code == 500
@@ -168,16 +168,16 @@ class TestGetURLs:
         mock_url_db.get_urls.return_value = []
         response = client.get(self.url)
 
-        empty_list_urls = get_fixture_html('empty_list_urls.html')
+        empty_urls = get_fixture_html('empty_list_urls.html')
 
-        assert empty_list_urls in response.text
+        assert empty_urls in response.text
 
     def test_get_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
         with pytest.raises(psycopg2.Error):
             client.get(self.url)
 
-    def test_get_urls_get_list_urls_error(self, client, mock_url_db):
+    def test_get_urls_get_urls_error(self, client, mock_url_db):
         mock_url_db.get_urls.side_effect = psycopg2.Error
         response = client.get(self.url)
 
@@ -193,7 +193,7 @@ class TestGetURL:
         created_at=datetime(2000, 1, 1, 1, 1, 1))
 
     def test_get_url_success(self, client, mock_url_db):
-        checks_list = [
+        checks = [
             psycopg2.extras.RealDictRow(
                 id=2,
                 status_code=200,
@@ -209,7 +209,7 @@ class TestGetURL:
                 description='description',
                 created_at=datetime(2000, 1, 1, 1, 1, 1))]
         mock_url_db.get_url.return_value = self.url_data
-        mock_url_db.get_url_checks.return_value = checks_list
+        mock_url_db.get_url_checks.return_value = checks
         response = client.get(self.url)
 
         url_page = get_fixture_html('url_page.html')

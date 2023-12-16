@@ -23,7 +23,7 @@ def connection():
 
 def test_generate_selection_string_seccess(connection):
     table = 'urls'
-    selection_fields = [('urls', 'name'), ('urls', 'created_at')]
+    fields = [('urls', 'name'), ('urls', 'created_at')]
     distinct = ('urls', 'created_at')
 
     expected = sql.SQL('SELECT DISTINCT ON ("urls"."created_at") '
@@ -31,7 +31,7 @@ def test_generate_selection_string_seccess(connection):
     expected_string = expected.as_string(connection)
 
     result = db_operations._generate_selection_string(table=table,
-                                                      fields=selection_fields,
+                                                      fields=fields,
                                                       distinct=distinct)
     assert result.as_string(connection) == expected_string
 

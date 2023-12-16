@@ -76,9 +76,9 @@ class TestCreateURL:
         mock_db_operations.insert_data.return_value = returning_value
 
         table = 'urls'
-        inserted_data = {'name': self.url}
-        insertion_fields = ['name']
-        returning_fields = ['id']
+        data = {'name': self.url}
+        fields = ['name']
+        returning_field = ['id']
 
         result = url_db_operations.create_url(mock_connection, self.url)
 
@@ -87,9 +87,9 @@ class TestCreateURL:
 
         assert mock_db_operations.insert_data.called
         assert table in insert_kwargs
-        assert insertion_fields in insert_kwargs
-        assert inserted_data in insert_kwargs
-        assert returning_fields in insert_kwargs
+        assert fields in insert_kwargs
+        assert data in insert_kwargs
+        assert returning_field in insert_kwargs
 
         assert result == 1
 
@@ -113,7 +113,7 @@ class TestCreateURLCheck:
         mock_db_operations.insert_data.return_value = None
 
         table = 'url_checks'
-        insertion_fields = ['url_id', 'status_code', 'h1',
+        fields = ['url_id', 'status_code', 'h1',
                             'title', 'description']
         data_copy = self.check_data.copy()
 
@@ -128,7 +128,7 @@ class TestCreateURLCheck:
 
         assert mock_db_operations.insert_data.called
         assert table in insert_kwargs
-        assert insertion_fields in insert_kwargs
+        assert fields in insert_kwargs
         assert data_copy in insert_kwargs
 
     def test_create_check_insert_error(self,
@@ -150,7 +150,7 @@ class TestCheckURL:
             psycopg2.extras.RealDictRow(id=1)]
 
         table = 'urls'
-        selection_fields = [('urls', 'id')]
+        fields = [('urls', 'id')]
         condition = (('urls', 'name'), self.url)
 
         result = url_db_operations.check_url(mock_connection, self.url)
@@ -160,7 +160,7 @@ class TestCheckURL:
 
         assert mock_db_operations.select_data.called
         assert table in select_kwargs
-        assert selection_fields in select_kwargs
+        assert fields in select_kwargs
         assert condition in select_kwargs
 
         assert result == 1
@@ -229,15 +229,15 @@ class TestGetURLs:
 
         result = url_db_operations.get_urls(mock_connection)
 
-        call_args_list = mock_db_operations.select_data.call_args_list
+        call_args = mock_db_operations.select_data.call_args_list
         assert mock_db_operations.select_data.call_count == 2
 
-        first_call_args = call_args_list[0].kwargs.values()
+        first_call_args = call_args[0].kwargs.values()
         assert urls_table in first_call_args
         assert urls_fields in first_call_args
         assert urls_sorting in first_call_args
 
-        second_call_args = call_args_list[1].kwargs.values()
+        second_call_args = call_args[1].kwargs.values()
         assert checks_table in second_call_args
         assert checks_fields in second_call_args
         assert checks_distinct in second_call_args
@@ -286,14 +286,14 @@ class TestGetURLChecks:
                 created_at=datetime(2001, 1, 1, 1, 1, 1))]
         mock_db_operations.select_data.return_value = selection_data
 
-        table_for_url_checks = 'url_checks'
-        fields_for_checks = [('url_checks', 'id'),
-                             ('url_checks', 'status_code'),
-                             ('url_checks', 'h1'),
-                             ('url_checks', 'title'),
-                             ('url_checks', 'description'),
-                             ('url_checks', 'created_at')]
-        condition_for_checks = (('url_checks', 'url_id'), self.url_id)
+        table = 'url_checks'
+        fields = [('url_checks', 'id'),
+                  ('url_checks', 'status_code'),
+                  ('url_checks', 'h1'),
+                  ('url_checks', 'title'),
+                  ('url_checks', 'description'),
+                  ('url_checks', 'created_at')]
+        condition = (('url_checks', 'url_id'), self.url_id)
         sorting = [(('url_checks', 'created_at'), 'DESC')]
 
         result = url_db_operations.get_url_checks(mock_connection, self.url_id)
@@ -301,9 +301,9 @@ class TestGetURLChecks:
         select_call_args = mock_db_operations.select_data.call_args
         select_kwargs = select_call_args.kwargs.values()
 
-        assert table_for_url_checks in select_kwargs
-        assert fields_for_checks in select_kwargs
-        assert condition_for_checks in select_kwargs
+        assert table in select_kwargs
+        assert fields in select_kwargs
+        assert condition in select_kwargs
         assert sorting in select_kwargs
 
         assert result == selection_data
