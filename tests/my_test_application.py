@@ -56,7 +56,9 @@ def test_index_success(client):
     response = client.get('/')
 
     form = get_fixture_html('index_form.html')
+    base_html = get_fixture_html('base.html')
 
+    assert base_html in response.text
     assert form in response.text
 
 
