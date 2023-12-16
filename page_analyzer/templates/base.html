@@ -14,29 +14,13 @@
 </head>
 
 <body class="min-vh-100 d-flex flex-column">
-    <header class="flex-shrink-0">
-        <nav class="navbar navbar-expand-md bg-dark px-3" data-bs-theme="dark">
-            <a class="navbar-brand" href="{{ url_for('index') }}">Анализатор страниц</a>
-            <div id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link " href="{{ url_for('get_urls') }}">Сайты</a></li>
-                </ul>
-                </ul>
-            </div>
-        </nav>
-    </header>
-    {% if messages -%}
-    {% for category, message in messages -%}
-    <div class="alert alert-{{ category }}" role="alert">{{ message }}{{ intr }}</div>
-    {% endfor -%}
-    {% endif -%}
-    {% block content %}
-    {% endblock %}
-    <footer class="border-top py-3 mt-5 flex-shrink-0">
-        <div class="container-fluid text-center">
-            <a href="https://github.com/Faizik12" target="_blank">GitHub</a>
-        </div>
-    </footer>
+{% include 'header.html' -%}
+{% if messages -%}
+{% include 'messages.html' %}
+{%- endif -%}
+{% block content %}
+{% endblock -%}
+{% include 'footer.html' %}
 </body>
 
 </html>
