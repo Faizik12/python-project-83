@@ -64,9 +64,8 @@ def post_urls() -> Response | tuple[str, int]:
 
     normalized_url = urlutils.normalize_url(url)
 
-    connection = None
+    connection = url_db.open_connection(DATABASE_URL)
     try:
-        connection = url_db.open_connection(DATABASE_URL)
         url_id = url_db.check_url(connection, normalized_url)
         if url_id is not None:
             flash('Страница уже существует', INFO_MESSAGE_TYPE)
@@ -75,8 +74,7 @@ def post_urls() -> Response | tuple[str, int]:
     except psycopg2.Error:
         abort(500)
     finally:
-        if connection is not None:
-            url_db.close_connection(connection)
+        url_db.close_connection(connection)
 
     flash('Страница успешно добавлена', SUCCES_MESSAGE_TYPE)
     return redirect(url_for('get_url', id=url_id))
@@ -85,15 +83,13 @@ def post_urls() -> Response | tuple[str, int]:
 @app.get('/urls')
 def get_urls() -> str:
     """Return the page with the list of URLs."""
-    connection = None
+    connection = url_db.open_connection(DATABASE_URL)
     try:
-        connection = url_db.open_connection(DATABASE_URL)
         urls = url_db.get_urls(connection)
     except psycopg2.Error:
         abort(500)
     finally:
-        if connection is not None:
-            url_db.close_connection(connection)
+        url_db.close_connection(connection)
 
     messages = get_flashed_messages(with_categories=True)
     return render_template('urls.html', messages=messages, urls=urls)
@@ -102,9 +98,8 @@ def get_urls() -> str:
 @app.get('/urls/<int:id>')
 def get_url(id: int) -> str:
     """Return the page to a specific URL."""
-    connection = None
+    connection = url_db.open_connection(DATABASE_URL)
     try:
-        connection = url_db.open_connection(DATABASE_URL)
         url_data = url_db.get_url(connection, id)
         if url_data is None:
             abort(404)
@@ -112,8 +107,7 @@ def get_url(id: int) -> str:
     except psycopg2.Error:
         abort(500)
     finally:
-        if connection is not None:
-            url_db.close_connection(connection)
+        url_db.close_connection(connection)
 
     messages = get_flashed_messages(with_categories=True)
     return render_template('url.html',
@@ -125,9 +119,8 @@ def get_url(id: int) -> str:
 @app.post('/urls/<int:id>/checks')
 def post_checks(id: int) -> Response:
     """Process a request to create a URL verification record."""
-    connection = None
+    connection = url_db.open_connection(DATABASE_URL)
     try:
-        connection = url_db.open_connection(DATABASE_URL)
         url_data = url_db.get_url(connection, id)
         if url_data is None:
             abort(404)
@@ -140,8 +133,7 @@ def post_checks(id: int) -> Response:
         flash('Произошла ошибка при проверке', INFO_MESSAGE_TYPE)
         return redirect(url_for('get_url', id=id))
     finally:
-        if connection is not None:
-            url_db.close_connection(connection)
+        url_db.close_connection(connection)
 
     flash('Страница успешно проверена', SUCCES_MESSAGE_TYPE)
     return redirect(url_for('get_url', id=id))
