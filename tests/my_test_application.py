@@ -111,9 +111,8 @@ class TestPostUrl:
 
     def test_post_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
-        response = client.post(self.url, data=self.form_data)
-
-        assert response.status_code == 500
+        with pytest.raises(psycopg2.Error):
+            response = client.post(self.url, data=self.form_data)
 
     def test_post_urls_check_url_error(self, client, mock_url_db):
         mock_url_db.check_url.side_effect = psycopg2.Error
@@ -175,9 +174,8 @@ class TestGetURLs:
 
     def test_get_urls_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
-        response = client.get(self.url)
-
-        assert response.status_code == 500
+        with pytest.raises(psycopg2.Error):
+            response = client.get(self.url)
 
     def test_get_urls_get_list_urls_error(self, client, mock_url_db):
         mock_url_db.get_urls.side_effect = psycopg2.Error
@@ -222,9 +220,8 @@ class TestGetURL:
 
     def test_get_url_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
-        response = client.get(self.url)
-
-        assert response.status_code == 500
+        with pytest.raises(psycopg2.Error):
+            response = client.get(self.url)
 
     def test_get_url_get_url_error(self, client, mock_url_db):
         mock_url_db.get_url.side_effect = psycopg2.Error
@@ -272,9 +269,8 @@ class TestPostChecks:
 
     def test_post_checks_connection_error(self, client, mock_url_db):
         mock_url_db.open_connection.side_effect = psycopg2.Error
-        response = client.post(self.url)
-
-        assert response.status_code == 500
+        with pytest.raises(psycopg2.Error):
+            response = client.post(self.url)
 
     def test_post_checks_get_url_error(self, client, mock_url_db):
         mock_url_db.get_url.side_effect = psycopg2.Error
@@ -324,9 +320,8 @@ def test_page_not_found_succes(client):
 
 
 def test_internal_server_error_success(client, mock_url_db):
-    mock_url_db.open_connection.side_effect = psycopg2.Error
-    response = client.post('/urls',
-                           data={'url': 'http://example.com'})
+    mock_url_db.check_url.side_effect = psycopg2.Error
+    response = client.post('/urls', data={'url': 'http://example.com'})
 
     error = get_fixture_html('errors/500.html')
 
