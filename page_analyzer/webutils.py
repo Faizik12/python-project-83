@@ -22,7 +22,7 @@ def parse_html_response(response: requests.Response) -> dict[str, t.Any]:
     """Parse the site's response, return the dict with the response data."""
     content = response.text
     status_code = response.status_code
-    result: dict[str, t.Any] = {'status_code': status_code}
+    data: dict[str, t.Any] = {'status_code': status_code}
 
     html_tree = bs4.BeautifulSoup(content, 'html.parser')
 
@@ -44,6 +44,6 @@ def parse_html_response(response: requests.Response) -> dict[str, t.Any]:
     tags = dict(h1=content_h1,
                 title=content_title,
                 description=content_desc)
-    result.update(tags)
+    data.update(tags)
 
-    return result
+    return data

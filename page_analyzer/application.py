@@ -100,8 +100,8 @@ def get_url(id: int) -> str:
     """Return the page to a specific URL."""
     connection = url_db.open_connection(DATABASE_URL)
     try:
-        url_data = url_db.get_url(connection, id)
-        if url_data is None:
+        url = url_db.get_url(connection, id)
+        if url is None:
             abort(404)
         checks_list = url_db.get_url_checks(connection, id)
     except psycopg2.Error:
@@ -112,7 +112,7 @@ def get_url(id: int) -> str:
     messages = get_flashed_messages(with_categories=True)
     return render_template('url.html',
                            messages=messages,
-                           url=url_data,
+                           url=url,
                            checks=checks_list)
 
 
@@ -121,12 +121,12 @@ def post_checks(id: int) -> Response:
     """Process a request to create a URL verification record."""
     connection = url_db.open_connection(DATABASE_URL)
     try:
-        url_data = url_db.get_url(connection, id)
-        if url_data is None:
+        url = url_db.get_url(connection, id)
+        if url is None:
             abort(404)
-        response = webutils.get_site_response(url_data['name'])
-        page_data = webutils.parse_html_response(response)
-        url_db.create_check(connection, id, page_data)
+        response = webutils.get_site_response(url['name'])
+        parsed_response = webutils.parse_html_response(response)
+        url_db.create_check(connection, id, parsed_response)
     except psycopg2.Error:
         abort(500)
     except requests.RequestException:
