@@ -26,24 +26,13 @@ def parse_html_response(response: requests.Response) -> dict[str, t.Any]:
 
     html_tree = bs4.BeautifulSoup(content, 'html.parser')
 
-    tag_h1 = html_tree.h1
-    tag_title = html_tree.title
-    tag_meta_desc = html_tree.find('meta', attrs={'name': 'description'})
+    tag_desc = html_tree.find('meta', attrs={'name': 'description'})
 
-    content_h1: str | None = None
-    content_title: str | None = None
-    content_desc: str | None = None
-
-    if tag_h1 is not None:
-        content_h1 = str(tag_h1.string)
-    if tag_title is not None:
-        content_title = str(tag_title.string)
-    if tag_meta_desc is not None:
-        content_desc = str(tag_meta_desc.get('content'))  # type: ignore
-
-    tags = dict(h1=content_h1,
-                title=content_title,
-                description=content_desc)
-    data.update(tags)
+    if html_tree.h1 is not None:
+        data.update(h1=str(html_tree.h1.string))
+    if html_tree.title is not None:
+        data.update(title=str(html_tree.title.string))
+    if tag_desc is not None:
+        data.update(description=str(tag_desc.get('content')))  # type: ignore
 
     return data
