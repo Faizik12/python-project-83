@@ -21,16 +21,12 @@ LOWER_LEVEL_ERROR = 'Error at the lower level'
 
 def create_url(connection: connection, url: str) -> int:
     """Create a record URL in db, return record id."""
-    fields = ['name']
-    data = {'name': url}
-    returning_field = ['id']
-
     try:
         returning = db_operations.insert_data(connection=connection,
                                               table=URLS_TABLE,
-                                              fields=fields,
-                                              data=data,
-                                              returning=returning_field)
+                                              fields=['name'],
+                                              data={'name': url},
+                                              returning=['id'])
     except psycopg2.Error:
         logging.error(LOWER_LEVEL_ERROR)
         raise
@@ -47,13 +43,15 @@ def create_check(connection: connection,
     """Create a record URL check in db, return None."""
     data = data.copy()
     data.update(url_id=url_id)
-    fields = ['url_id', 'status_code', 'h1',
-              'title', 'description']
 
     try:
         db_operations.insert_data(connection=connection,
                                   table=URL_CHECKS_TABLE,
-                                  fields=fields,
+                                  fields=['url_id',
+                                          'status_code',
+                                          'h1',
+                                          'title',
+                                          'description'],
                                   data=data)
     except psycopg2.Error:
         logging.error(LOWER_LEVEL_ERROR)
@@ -64,14 +62,11 @@ def create_check(connection: connection,
 
 def check_url(connection: connection, url: str) -> int | None:
     """Check for a URLs, return id or None if no record."""
-    fields: list[tuple[str, str]] = [('urls', 'id')]
-    condition = (('urls', 'name'), url)
-
     try:
         urls = db_operations.select_data(connection=connection,
                                          table=URLS_TABLE,
-                                         fields=fields,
-                                         filtering=condition)
+                                         fields=[('urls', 'id')],
+                                         filtering=(('urls', 'name'), url))
     except psycopg2.Error:
         logging.error(LOWER_LEVEL_ERROR)
         raise
@@ -147,16 +142,13 @@ def get_url_checks(connection: connection,
 
 def get_url(connection: connection, url_id: int) -> RealDictRow | None:
     """Returns the URL record or None if no record."""
-    fields = [('urls', 'id'),
-              ('urls', 'name'),
-              ('urls', 'created_at')]
-    condition = (('urls', 'id'), url_id)
-
     try:
         urls = db_operations.select_data(connection=connection,
                                          table=URLS_TABLE,
-                                         fields=fields,
-                                         filtering=condition)
+                                         fields=[('urls', 'id'),
+                                                 ('urls', 'name'),
+                                                 ('urls', 'created_at')],
+                                         filtering=(('urls', 'id'), url_id))
     except psycopg2.Error:
         logging.error(LOWER_LEVEL_ERROR)
         raise
