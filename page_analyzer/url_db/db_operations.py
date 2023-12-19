@@ -68,8 +68,6 @@ def insert_data(connection: connection,
             if returning is not None:
                 inserted_data = cursor.fetchall()  # type: ignore
     except psycopg2.Error:
-        connection.rollback()
-        connection.close()
         logging.exception(ERROR_OPERATION_MESSAGE.format(
             operation='insert data'))
         raise
@@ -106,8 +104,6 @@ def select_data(connection: connection,
             cursor.execute(result_query)
             data: list[RealDictRow] = cursor.fetchall()  # type: ignore
     except psycopg2.Error:
-        connection.rollback()
-        connection.close()
         logging.exception(ERROR_OPERATION_MESSAGE.format(
             operation='select data'))
         raise
