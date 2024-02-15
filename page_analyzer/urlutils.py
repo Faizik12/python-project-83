@@ -3,15 +3,15 @@ import urllib.parse
 import validators
 
 
-def validate_url(url: str) -> str:
+def validate_url(url: str) -> list[str]:
     """Validate URL address, return error if any."""
-    error = ''
+    error = []
     if not url:
-        error = 'URL обязателен'
+        error.append('URL обязателен')
     elif len(url) > 255:
-        error = 'URL превышает 255 символов'
+        error.append('URL превышает 255 символов')
     elif not validators.url(url):
-        error = 'Некорректный URL'
+        error.append('Некорректный URL')
     return error
 
 

@@ -53,10 +53,11 @@ def index() -> str:
 def post_urls() -> Response | tuple[str, int]:
     """Process a request to create a url record."""
     url = request.form.get('url', '')
-    error = urlutils.validate_url(url)
+    errors = urlutils.validate_url(url)
 
-    if error:
-        flash(error, WARNING_MESSAGE_TYPE)
+    if errors:
+        for error in errors:
+            flash(error, WARNING_MESSAGE_TYPE)
         messages = get_flashed_messages(with_categories=True)
         return render_template('index.html',
                                messages=messages,
