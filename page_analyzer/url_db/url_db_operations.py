@@ -41,9 +41,6 @@ def create_check(connection: connection,
                  data: dict[str, t.Any],
                  ) -> None:
     """Create a record URL check in db, return None."""
-    data = data.copy()
-    data.update(url_id=url_id)
-
     try:
         db_operations.insert_data(connection=connection,
                                   table=URL_CHECKS_TABLE,
@@ -52,7 +49,7 @@ def create_check(connection: connection,
                                           'h1',
                                           'title',
                                           'description'],
-                                  data=data)
+                                  data=data | {'url_id': url_id})
     except psycopg2.Error:
         logging.error(LOWER_LEVEL_ERROR)
         raise

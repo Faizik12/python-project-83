@@ -115,21 +115,19 @@ class TestCreateURLCheck:
         table = 'url_checks'
         fields = ['url_id', 'status_code', 'h1',
                             'title', 'description']
-        data_copy = self.check_data.copy()
+        result_data = self.check_data | {'url_id': self.url_id}
 
         url_db_operations.create_check(connection=mock_connection,
                                        url_id=self.url_id,
-                                       data=data_copy)
+                                       data=self.check_data)
 
         insert_call_args = mock_db_operations.insert_data.call_args
         insert_kwargs = insert_call_args.kwargs.values()
 
-        data_copy.update(url_id=self.url_id)
-
         assert mock_db_operations.insert_data.called
         assert table in insert_kwargs
         assert fields in insert_kwargs
-        assert data_copy in insert_kwargs
+        assert result_data in insert_kwargs
 
     def test_create_check_insert_error(self,
                                        mock_db_operations,
