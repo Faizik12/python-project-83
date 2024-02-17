@@ -125,7 +125,7 @@ def post_checks(id: int) -> Response:
         url = url_db.get_url(connection, id)
         if url is None:
             abort(404)
-        response = webutils.get_site_response(url['name'])
+        response = webutils.get_site_response(url.name)  # type: ignore
         parsed_response = webutils.parse_html_response(response)
         url_db.create_check(connection, id, parsed_response)
     except psycopg2.Error:

@@ -6,11 +6,10 @@ import typing as t
 
 import psycopg2
 from psycopg2 import sql
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import NamedTupleCursor
 
 if t.TYPE_CHECKING:
     from psycopg2.extensions import connection
-    from psycopg2.extras import RealDictRow
     from psycopg2.sql import Composed
     from psycopg2.sql import SQL
 
@@ -24,7 +23,7 @@ CLOSE_CONNECTION_MESSAGE = 'The changes are committed and '\
 def open_connection(db_url: str) -> connection:
     """Create a DB connection, return a connection instance."""
     try:
-        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(db_url, cursor_factory=NamedTupleCursor)
     except psycopg2.Error:
         logging.exception(ERROR_OPERATION_MESSAGE.format(
             operation='DB connection'))
@@ -39,7 +38,7 @@ def insert_data(connection: connection,
                 fields: list[str],
                 data: dict[str, t.Any],
                 returning: list[str] | None = None,
-                ) -> list[RealDictRow] | None:
+                ) -> list[t.NamedTuple] | None:
     """Insert data into the DB, return None or inserted data."""
     fields = [*fields, 'created_at']
     created_at = datetime.datetime.now()
@@ -60,7 +59,7 @@ def insert_data(connection: connection,
         query += returning_string
 
     result_query = query + query_end
-    inserted_data: list[RealDictRow] | None = None
+    inserted_data: list[t.NamedTuple] | None = None
 
     try:
         with connection.cursor() as cursor:
@@ -82,7 +81,7 @@ def select_data(connection: connection,
                 distinct: tuple[str, str] | None = None,
                 filtering: tuple[tuple[str, str], str | int] | None = None,
                 sorting: list[tuple[tuple[str, str], str]] | None = None,
-                ) -> list[RealDictRow]:
+                ) -> list[t.NamedTuple]:
     """Select data from the DB, return records list."""
     query = _generate_selection_string(table=table,
                                        fields=fields,
@@ -102,7 +101,7 @@ def select_data(connection: connection,
     try:
         with connection.cursor() as cursor:
             cursor.execute(result_query)
-            data: list[RealDictRow] = cursor.fetchall()  # type: ignore
+            data: list[t.NamedTuple] = cursor.fetchall()  # type: ignore
     except psycopg2.Error:
         logging.exception(ERROR_OPERATION_MESSAGE.format(
             operation='select data'))

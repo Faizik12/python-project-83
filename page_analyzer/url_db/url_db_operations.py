@@ -4,11 +4,12 @@ import logging
 import typing as t
 
 import psycopg2
-from psycopg2.extras import RealDictRow
 
 from page_analyzer.url_db import db_operations
 
 if t.TYPE_CHECKING:
+    from datetime import datetime
+
     from psycopg2.extensions import connection
 
 URLS_TABLE = 'urls'
@@ -31,7 +32,7 @@ def create_url(connection: connection, url: str) -> int:
         logging.error(LOWER_LEVEL_ERROR)
         raise
 
-    url_id: int = returning[0]['id']  # type: ignore
+    url_id: int = returning[0].id  # type: ignore
     logging.info(CREATION_MESSAGE.format(entity='URL'))
     return url_id
 
@@ -72,12 +73,12 @@ def check_url(connection: connection, url: str) -> int | None:
         logging.info(RECEIPT_MESSAGE.format(entity='URL'))
         return None
 
-    url_id: int = urls[0]['id']
+    url_id: int = urls[0].id  # type: ignore
     logging.info(RECEIPT_MESSAGE.format(entity='URL'))
     return url_id
 
 
-def get_urls(connection: connection) -> list[RealDictRow]:
+def get_urls(connection: connection) -> t.Sequence[t.NamedTuple]:
     """Return a list of URL records."""
     urls_fields = [('urls', 'id'), ('urls', 'name')]
     urls_sorting: list[tuple[tuple[str, str], str]]
@@ -111,7 +112,7 @@ def get_urls(connection: connection) -> list[RealDictRow]:
 
 def get_url_checks(connection: connection,
                    url_id: int,
-                   ) -> list[RealDictRow]:
+                   ) -> list[t.NamedTuple]:
     """Returns a list of URL checks."""
     fields = [('url_checks', 'id'),
               ('url_checks', 'status_code'),
@@ -137,7 +138,7 @@ def get_url_checks(connection: connection,
     return url_checks
 
 
-def get_url(connection: connection, url_id: int) -> RealDictRow | None:
+def get_url(connection: connection, url_id: int) -> t.NamedTuple | None:
     """Returns the URL record or None if no record."""
     try:
         urls = db_operations.select_data(connection=connection,
@@ -157,19 +158,26 @@ def get_url(connection: connection, url_id: int) -> RealDictRow | None:
     return urls[0]
 
 
-def _merge_urls_checks(urls: list[RealDictRow],
-                       url_checks: list[RealDictRow],
-                       ) -> list[RealDictRow]:
+def _merge_urls_checks(urls: t.Sequence[t.NamedTuple],
+                       url_checks: t.Sequence[t.NamedTuple],
+                       ) -> t.Sequence[t.NamedTuple]:
     '''Return the merged list of URLs and their checks.'''
+    class Record(t.NamedTuple):
+        id: int
+        name: str
+        created_at: datetime | None = None
+        status_code: int | None = None
+
     result = []
     for url in urls:
-        url_id = url['id']
-        order = RealDictRow(id=url_id,
-                            name=url['name'])
         for check in url_checks:
-            if check['url_id'] == url_id:
-                order.update(created_at=check['created_at'],
-                             status_code=check['status_code'])
+            if check.url_id == url.id:  # type: ignore
+                record = Record(url.id,  # type: ignore
+                                url.name,  # type: ignore
+                                check.created_at,  # type: ignore
+                                check.status_code)  # type: ignore
                 break
-        result.append(order)
+        else:
+            record = Record(url.id, url.name)  # type: ignore
+        result.append(record)
     return result
