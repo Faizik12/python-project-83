@@ -1,7 +1,8 @@
 from datetime import datetime
+import typing as t
 from unittest.mock import MagicMock
 
-import psycopg2.extras
+import psycopg2
 import pytest
 
 from page_analyzer.url_db import url_db_operations
@@ -22,35 +23,22 @@ def mock_connection():
 
 
 class TestMergeURLsChecks:
-    urls = [
-        psycopg2.extras.RealDictRow(
-            id=2,
-            name='http://example2.com'),
-        psycopg2.extras.RealDictRow(
-            id=1,
-            name='http://example1.com')]
-    url_checks = [
-        psycopg2.extras.RealDictRow(
-            url_id=2,
-            created_at=datetime(2002, 2, 2, 2, 2, 2),
-            status_code=200),
-        psycopg2.extras.RealDictRow(
-            url_id=1,
-            created_at=datetime(2001, 1, 1, 1, 1, 1),
-            status_code=200)]
+    Url = t.NamedTuple('Url', id=int, name=str)
+    Check = t.NamedTuple('Check', url_id=int,
+                         created_at=datetime, status_code=int)
+    Result = t.NamedTuple('Result', id=int, name=str,
+                          created_at=datetime, status_code=int)
+    urls = [Url(2, 'http://example2.com'),
+            Url(1, 'http://example1.com')]
+    url_checks = [Check(2, datetime(2002, 2, 2, 2, 2, 2), 200),
+                  Check(1, datetime(2001, 1, 1, 1, 1, 1), 200)]
 
     def test_merge_urls_checks_success(self):
         correct_result = [
-            psycopg2.extras.RealDictRow(
-                id=2,
-                name='http://example2.com',
-                created_at=datetime(2002, 2, 2, 2, 2, 2),
-                status_code=200),
-            psycopg2.extras.RealDictRow(
-                id=1,
-                name='http://example1.com',
-                created_at=datetime(2001, 1, 1, 1, 1, 1),
-                status_code=200)]
+            self.Result(2, 'http://example2.com',
+                        datetime(2002, 2, 2, 2, 2, 2), 200),
+            self.Result(1, 'http://example1.com',
+                        datetime(2001, 1, 1, 1, 1, 1), 200)]
 
         result = url_db_operations._merge_urls_checks(self.urls,
                                                       self.url_checks)
@@ -63,16 +51,21 @@ class TestMergeURLsChecks:
         assert result == []
 
     def test_get_urls_second_select_empty(self):
+        correct_result = [
+            self.Result(2, 'http://example2.com', None, None),
+            self.Result(1, 'http://example1.com', None, None)]
+
         result = url_db_operations._merge_urls_checks(self.urls, [])
 
-        assert result == self.urls
+        assert result == correct_result
 
 
 class TestCreateURL:
     url = 'http://example.com'
+    Record = t.NamedTuple('Record', id=int)
 
     def test_create_url_success(self, mock_db_operations, mock_connection):
-        returning_value = [psycopg2.extras.RealDictRow(id=1)]
+        returning_value = [self.Record(1)]
         mock_db_operations.insert_data.return_value = returning_value
 
         table = 'urls'
@@ -114,7 +107,7 @@ class TestCreateURLCheck:
 
         table = 'url_checks'
         fields = ['url_id', 'status_code', 'h1',
-                            'title', 'description']
+                  'title', 'description']
         result_data = self.check_data | {'url_id': self.url_id}
 
         url_db_operations.create_check(connection=mock_connection,
@@ -142,10 +135,10 @@ class TestCreateURLCheck:
 
 class TestCheckURL:
     url = 'http://example.com'
+    Record = t.NamedTuple('Record', id=int)
 
     def test_check_url_success(self, mock_db_operations, mock_connection):
-        mock_db_operations.select_data.return_value = [
-            psycopg2.extras.RealDictRow(id=1)]
+        mock_db_operations.select_data.return_value = [self.Record(1)]
 
         table = 'urls'
         fields = [('urls', 'id')]
@@ -178,28 +171,26 @@ class TestCheckURL:
 
 
 class TestGetURLs:
-    selected_urls = [
-        psycopg2.extras.RealDictRow(
-            id=2,
-            name='http://example2.com'),
-        psycopg2.extras.RealDictRow(
-            id=1,
-            name='http://example1.com')]
-    selected_url_checks = [
-        psycopg2.extras.RealDictRow(
-            url_id=2,
-            created_at=datetime(2002, 2, 2, 2, 2, 2),
-            status_code=200),
-        psycopg2.extras.RealDictRow(
-            url_id=1,
-            created_at=datetime(2001, 1, 1, 1, 1, 1),
-            status_code=200)]
+    Url = t.NamedTuple('Url', id=int, name=str)
+    Check = t.NamedTuple('Check', url_id=int,
+                         created_at=datetime, status_code=int)
+    Result = t.NamedTuple('Result', id=int, name=str,
+                          created_at=datetime, status_code=int)
+    urls = [Url(2, 'http://example2.com'),
+            Url(1, 'http://example1.com')]
+    url_checks = [Check(2, datetime(2002, 2, 2, 2, 2, 2), 200),
+                  Check(1, datetime(2001, 1, 1, 1, 1, 1), 200)]
 
     def test_get_urls_success(self,
                               mock_db_operations,
                               mock_connection):
-        mock_db_operations.select_data.side_effect = (self.selected_urls,
-                                                      self.selected_url_checks)
+        correct_result = [
+            self.Result(2, 'http://example2.com',
+                        datetime(2002, 2, 2, 2, 2, 2), 200),
+            self.Result(1, 'http://example1.com',
+                        datetime(2001, 1, 1, 1, 1, 1), 200)]
+        mock_db_operations.select_data.side_effect = (self.urls,
+                                                      self.url_checks)
 
         urls_table = 'urls'
         urls_fields = [('urls', 'id'), ('urls', 'name')]
@@ -212,18 +203,6 @@ class TestGetURLs:
         checks_distinct = ('url_checks', 'url_id')
         checks_sorting = [(('url_checks', 'url_id'), 'ASC'),
                           (('url_checks', 'created_at'), 'DESC')]
-
-        correct_result = [
-            psycopg2.extras.RealDictRow(
-                id=2,
-                name='http://example2.com',
-                created_at=datetime(2002, 2, 2, 2, 2, 2),
-                status_code=200),
-            psycopg2.extras.RealDictRow(
-                id=1,
-                name='http://example1.com',
-                created_at=datetime(2001, 1, 1, 1, 1, 1),
-                status_code=200)]
 
         result = url_db_operations.get_urls(mock_connection)
 
@@ -254,7 +233,7 @@ class TestGetURLs:
     def test_get_urls_second_select_error(self,
                                           mock_db_operations,
                                           mock_connection):
-        mock_db_operations.select_data.side_effect = (self.selected_urls,
+        mock_db_operations.select_data.side_effect = (self.urls,
                                                       psycopg2.Error)
 
         with pytest.raises(psycopg2.Error):
@@ -263,25 +242,17 @@ class TestGetURLs:
 
 class TestGetURLChecks:
     url_id = 1
+    Record = t.NamedTuple('Record', id=int, status_code=int, h1=str,
+                          title=str, description=str, created_at=datetime)
 
     def test_get_url_checks_success(self,
                                     mock_db_operations,
                                     mock_connection):
         selection_data = [
-            psycopg2.extras.RealDictRow(
-                id=2,
-                status_code=200,
-                h1='Example h1',
-                title='Example title',
-                description='Example description',
-                created_at=datetime(2002, 2, 2, 2, 2, 2)),
-            psycopg2.extras.RealDictRow(
-                id=1,
-                status_code=200,
-                h1='Example h1',
-                title='Example title',
-                description='Example description',
-                created_at=datetime(2001, 1, 1, 1, 1, 1))]
+            self.Record(2, 200, 'Example h1', 'Example title',
+                        'Example description', datetime(2002, 2, 2, 2, 2, 2)),
+            self.Record(1, 200, 'Example h1', 'Example title',
+                        'Example description', datetime(2001, 1, 1, 1, 1, 1))]
         mock_db_operations.select_data.return_value = selection_data
 
         table = 'url_checks'
@@ -326,13 +297,11 @@ class TestGetURLChecks:
 
 class TestGetURL:
     url_id = 1
+    Record = t.NamedTuple('Record', id=int, name=str, created_at=datetime)
 
     def test_get_url_success(self, mock_db_operations, mock_connection):
         selection_data = [
-            psycopg2.extras.RealDictRow(
-                id=1,
-                name='http://example.com',
-                created_at=datetime(2001, 1, 1, 1, 1, 1))]
+            self.Record(1, 'http://example.com', datetime(2001, 1, 1, 1, 1, 1))]
         mock_db_operations.select_data.return_value = selection_data
 
         table = 'urls'

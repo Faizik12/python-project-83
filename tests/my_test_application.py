@@ -1,9 +1,10 @@
 from datetime import datetime
 import os
+import typing as t
 from unittest.mock import MagicMock
 
 from flask import get_flashed_messages
-import psycopg2.extras
+import psycopg2
 import pytest
 import requests
 
@@ -62,7 +63,7 @@ def test_index_success(client):
     assert form in response.text
 
 
-class TestPostUrl:
+class TestPostUrls:
     url = '/urls'
     form = {'url': 'http://example.com'}
 
@@ -143,19 +144,15 @@ class TestPostUrl:
 
 class TestGetURLs:
     url = '/urls'
+    Record = t.NamedTuple('Record', id=int, name=str,
+                          created_at=datetime, status_code=int)
 
     def test_get_urls_success(self, client, mock_url_db):
         mock_url_db.get_urls.return_value = [
-            psycopg2.extras.RealDictRow(
-                id=2,
-                name='https://example2.com',
-                created_at=datetime(2002, 2, 2, 2, 2, 2),
-                status_code=200),
-            psycopg2.extras.RealDictRow(
-                id=1,
-                name='http://example1.com',
-                created_at=datetime(2001, 1, 1, 1, 1, 1),
-                status_code=200)]
+            self.Record(2, 'https://example2.com',
+                        datetime(2002, 2, 2, 2, 2, 2), 200),
+            self.Record(1, 'http://example1.com',
+                        datetime(2001, 1, 1, 1, 1, 1), 200)]
         response = client.get(self.url)
 
         urls = get_fixture_html('urls.html')
@@ -187,27 +184,17 @@ class TestGetURLs:
 
 class TestGetURL:
     url = '/urls/1'
-    url_data = psycopg2.extras.RealDictRow(
-        id=1,
-        name='http://example.com',
-        created_at=datetime(2000, 1, 1, 1, 1, 1))
+    Url = t.NamedTuple('Url', id=int, name=str, created_at=datetime)
+    Check = t.NamedTuple('Check', id=int, status_code=int, h1=str,
+                         title=str, description=str, created_at=datetime)
+    url_data = Url(1, 'http://example.com', datetime(2000, 1, 1, 1, 1, 1))
 
     def test_get_url_success(self, client, mock_url_db):
         checks = [
-            psycopg2.extras.RealDictRow(
-                id=2,
-                status_code=200,
-                h1='h1',
-                title='title',
-                description='description',
-                created_at=datetime(2000, 2, 2, 2, 2, 2)),
-            psycopg2.extras.RealDictRow(
-                id=1,
-                status_code=200,
-                h1='h1',
-                title='title',
-                description='description',
-                created_at=datetime(2000, 1, 1, 1, 1, 1))]
+            self.Check(2, 200, 'h1', 'title', 'description',
+                       datetime(2000, 2, 2, 2, 2, 2)),
+            self.Check(1, 200, 'h1', 'title', 'description',
+                       datetime(2000, 1, 1, 1, 1, 1))]
         mock_url_db.get_url.return_value = self.url_data
         mock_url_db.get_url_checks.return_value = checks
         response = client.get(self.url)
@@ -249,12 +236,11 @@ class TestGetURL:
 
 class TestPostChecks:
     url = '/urls/1/checks'
+    Url = t.NamedTuple('Url', id=int, name=str, created_at=datetime)
 
     def test_post_checks_success(self, client, mock_url_db, mock_webutils):
-        url_data = psycopg2.extras.RealDictRow(
-            id=1,
-            name='http://example.com',
-            created_at=datetime(2000, 1, 1, 1, 1, 1))
+        url_data = self.Url(1, 'http://example.com',
+                            datetime(2000, 1, 1, 1, 1, 1))
         mock_url_db.get_url.return_value = url_data
         mock_webutils.get_site_response.return_value = FakeResponse()
         with client:

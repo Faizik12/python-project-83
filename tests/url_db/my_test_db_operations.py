@@ -97,7 +97,7 @@ class TestInsertData:
                                               data=data,
                                               returning=returning_field)
 
-        assert data['name'] in returning[0]['name']  # type: ignore
+        assert data['name'] in returning[0].name  # type: ignore
 
     def test_insert_error(self, connection):
         false_table = 'url'
@@ -142,7 +142,7 @@ class TestSelectData:
                                              table=table,
                                              fields=selection_fields)
 
-        assert data['name'] in result_2[0]['name']  # type: ignore
+        assert data['name'] in result_2[0].name  # type: ignore
 
     def test_select_data_error(self, connection):
         false_table = 'url'
