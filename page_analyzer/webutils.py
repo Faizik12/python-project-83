@@ -30,9 +30,15 @@ def parse_html_response(response: requests.Response) -> dict[str, t.Any]:
 
     if html_tree.h1 is not None:
         data.update(h1=str(html_tree.h1.string))
+    else:
+        data.update(h1=None)
     if html_tree.title is not None:
         data.update(title=str(html_tree.title.string))
+    else:
+        data.update(title=None)
     if tag_desc is not None:
         data.update(description=str(tag_desc.get('content')))  # type: ignore
+    else:
+        data.update(description=None)
 
     return data
