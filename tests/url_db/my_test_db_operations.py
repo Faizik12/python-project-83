@@ -21,7 +21,7 @@ def connection():
     connect.close()
 
 
-def test_generate_selection_string_seccess(connection):
+def test_generate_selection_string_success(connection):
     table = 'urls'
     fields = [('urls', 'name'), ('urls', 'created_at')]
     distinct = ('urls', 'created_at')
@@ -36,7 +36,7 @@ def test_generate_selection_string_seccess(connection):
     assert result.as_string(connection) == expected_string
 
 
-def test_generate_filtering_string_seccess(connection):
+def test_generate_filtering_string_success(connection):
     condition = (('urls', 'id'), 1)
 
     expected = sql.SQL('WHERE "urls"."id" = 1\n')
@@ -47,7 +47,7 @@ def test_generate_filtering_string_seccess(connection):
     assert result.as_string(connection) == expected_string
 
 
-def test_generate_sorting_string_seccess(connection):
+def test_generate_sorting_string_success(connection):
     sorting = [(('urls', 'created_at'), 'DESC'),
                (('url_checks', 'created_at'), 'DESC')]
 
